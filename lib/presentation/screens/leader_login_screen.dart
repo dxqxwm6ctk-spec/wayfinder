@@ -18,9 +18,6 @@ class LeaderLoginScreen extends StatefulWidget {
 }
 
 class _LeaderLoginScreenState extends State<LeaderLoginScreen> {
-  static const String _demoLeaderEmail = 'leader@iu.edu.co';
-  static const String _demoLeaderPassword = 'leader1234';
-
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -104,9 +101,6 @@ class _LeaderLoginScreenState extends State<LeaderLoginScreen> {
                     if (input.isEmpty) {
                       return strings.emailRequired;
                     }
-                    if (input != _demoLeaderEmail) {
-                      return strings.leaderInvalidCredentials;
-                    }
                     return null;
                   },
                 ),
@@ -134,26 +128,6 @@ class _LeaderLoginScreenState extends State<LeaderLoginScreen> {
                   label: strings.login,
                   onPressed: _submit,
                   isLoading: authProvider.isLeaderLoading,
-                ),
-                const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.center,
-                  child: TextButton(
-                    onPressed: authProvider.isLeaderLoading
-                        ? null
-                        : () {
-                            _emailController.text = _demoLeaderEmail;
-                            _passwordController.text = _demoLeaderPassword;
-                          },
-                    child: Text(strings.useLeaderTestUser),
-                  ),
-                ),
-                Align(
-                  alignment: Alignment.center,
-                  child: Text(
-                    '$_demoLeaderEmail  |  $_demoLeaderPassword',
-                    style: Theme.of(context).textTheme.labelMedium,
-                  ),
                 ),
               ],
             ),

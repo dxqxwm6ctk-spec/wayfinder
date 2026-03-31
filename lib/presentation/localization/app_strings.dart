@@ -16,6 +16,8 @@ class AppStrings {
   String get continueAsLeader => isArabic ? 'الدخول كقائد' : 'Continue As Leader';
   String get back => isArabic ? 'رجوع' : 'Back';
   String get leaderLogin => isArabic ? 'تسجيل دخول القائد' : 'Leader Login';
+    String get leaderSignOut => isArabic ? 'تسجيل خروج' : 'Sign Out';
+    String get leaderSignedOut => isArabic ? 'تم تسجيل خروج القائد.' : 'Leader signed out successfully.';
   String get leaderEmail => isArabic ? 'البريد الوظيفي' : 'LEADER EMAIL';
   String get leaderEmailHint =>
       isArabic ? 'leader@university.edu' : 'leader@university.edu';
@@ -76,6 +78,16 @@ class AppStrings {
   String get confirmRequest =>
       isArabic ? 'تأكيد الطلب' : 'CONFIRM REQUEST';
   String get executeRequest => isArabic ? 'تنفيذ الطلب' : 'EXECUTE REQUEST';
+  String get busDepartedPrompt => isArabic
+      ? 'الباص انطلق لمنطقتك، إذا طلعت اضغط طلعت.'
+      : 'Your bus has departed. If you boarded, tap I Boarded.';
+  String get iBoarded => isArabic ? 'طلعت' : 'I Boarded';
+  String get boardedConfirmed => isArabic
+      ? 'تم تأكيد صعودك، بالتوفيق.'
+      : 'Boarding confirmed.';
+  String get boardingNotAvailable => isArabic
+      ? 'لا يمكن تأكيد الصعود حالياً.'
+      : 'Cannot confirm boarding right now.';
   String get turnOnImmediateHint => isArabic
       ? 'فعّل الاستلام الفوري لتحديد المنطقة وتنفيذ الطلب.'
       : 'Turn on immediate pickup to select area and execute request.';
@@ -96,6 +108,19 @@ class AppStrings {
   String get transitStatusTitle => isArabic ? 'حالة\nالنقل' : 'Transit\nStatus';
   String get transitStatusSubtitle =>
       isArabic ? 'تشغيل حي عبر الحرم الجامعي.' : 'Live operations across your campus.';
+  String get yourRideStatus => isArabic ? 'حالة طلبك' : 'Your Ride Status';
+  String get activeRide => isArabic ? 'لديك طلب نشط' : 'You have an active request';
+  String get noActiveRide => isArabic ? 'لا يوجد طلب نشط' : 'No active request';
+  String get yourCurrentArea => isArabic ? 'منطقتك الحالية' : 'Your Current Area';
+  String get busAssignedToArea => isArabic ? 'تم تخصيص باص لمنطقتك' : 'Bus assigned to your area';
+  String get noBusAssignedToArea => isArabic ? 'لم يتم تخصيص باص لمنطقتك بعد' : 'No bus assigned to your area yet';
+  String get estimatedArrival => isArabic ? 'وقت الوصول التقديري' : 'Estimated Arrival';
+  String etaMinutes(int minutes) => isArabic ? '$minutes دقيقة' : '$minutes min';
+  String get etaUnavailable => isArabic ? 'غير متاح حالياً' : 'Not available yet';
+  String get busAssignedAlert => isArabic ? 'تم وضع باص لمنطقتك' : 'A bus has been assigned to your area';
+  String get lastUpdated => isArabic ? 'آخر تحديث' : 'Last Updated';
+  String minutesAgo(int minutes) => isArabic ? 'قبل $minutes دقيقة' : '$minutes min ago';
+  String get justNow => isArabic ? 'الآن' : 'Just now';
   String get queueLoad => isArabic ? 'ضغط الطابور' : 'Queue Load';
   String studentsWaitingCount(int count) =>
       isArabic ? '$count طالب بانتظار الحافلة' : '$count Students Waiting';
@@ -113,6 +138,21 @@ class AppStrings {
   String get moderate => isArabic ? 'متوسط' : 'MODERATE';
   String get stable => isArabic ? 'مستقر' : 'STABLE';
   String get remove => isArabic ? 'إزالة' : 'REMOVE';
+    String get markDeparted => isArabic ? 'طلع' : 'Departed';
+    String get departed => isArabic ? 'انطلق' : 'Departed';
+    String busMarkedDeparted(String bus) =>
+            isArabic ? 'تم تسجيل انطلاق الباص $bus' : 'Bus $bus marked as departed.';
+      String get markStudentBoarded => isArabic ? 'خصم عدد' : 'Decrement Count';
+      String get enterBoardedCount => isArabic ? 'أدخل عدد الصاعدين' : 'Enter boarded count';
+      String get boardedCountRequired => isArabic ? 'أدخل رقم صحيح أكبر من صفر.' : 'Enter a valid number greater than zero.';
+      String get boardedCountHint => isArabic ? 'مثل: 3' : 'Ex: 3';
+      String get confirm => isArabic ? 'تأكيد' : 'Confirm';
+    String get boardedCountLabel => isArabic ? 'صعدوا' : 'Boarded';
+            String boardedCountExceedsAvailable(int available) => isArabic
+                    ? 'العدد المدخل أكبر من الموجود. المتاح حالياً: $available طالب.'
+                    : 'Entered count is greater than available. Currently available: $available students.';
+      String studentsMarkedBoarded(String zoneName, int count) =>
+          isArabic ? 'تم خصم $count من انتظار $zoneName' : '$count removed from $zoneName waiting queue.';
   String get enterBus => isArabic ? 'أدخل رقم الباص' : 'Enter Bus #';
   String get assign => isArabic ? 'تعيين' : 'ASSIGN';
   String get busRequired =>

@@ -44,7 +44,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     'رغدان',
     'الصويفية',
     'صويلح',
-    'جامعة البلقاء',
+    'شارع الجامعة',
     'نزال',
     'مادبا',
     'مرج الحمام',
