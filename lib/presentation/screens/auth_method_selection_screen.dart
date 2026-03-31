@@ -3,10 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/config/app_env.dart';
 import '../providers/app_settings_provider.dart';
-import '../providers/unified_auth_provider.dart';
-import './firebase_login_screen.dart';
 import './microsoft_login_screen.dart';
-import './phone_login_screen.dart';
 
 class AuthMethodSelectionScreen extends StatelessWidget {
   const AuthMethodSelectionScreen({super.key});
@@ -17,7 +14,6 @@ class AuthMethodSelectionScreen extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isArabic = settings.language == AppLanguage.arabic;
     final canUseMicrosoft = AppEnv.canUseMicrosoftAuth;
-    final canUseGoogle = AppEnv.googleSignInEnabled;
 
     return Scaffold(
       appBar: AppBar(
@@ -63,8 +59,8 @@ class AuthMethodSelectionScreen extends StatelessWidget {
               const SizedBox(height: 16),
               Text(
                 isArabic
-                    ? 'يمكنك استخدام بريدك الجامعي أو حسابات أخرى'
-                    : 'Use your university email or other accounts',
+                    ? 'مسموح فقط الدخول عبر حساب Microsoft الجامعي'
+                    : 'Only Microsoft university sign-in is allowed',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: isDark ? Colors.grey[400] : Colors.grey[700],
                 ),
@@ -101,206 +97,10 @@ class AuthMethodSelectionScreen extends StatelessWidget {
                 isDark: isDark,
                 isEnabled: canUseMicrosoft,
               ),
-              const SizedBox(height: 16),
-              // Firebase Email Button
-              _AuthMethodButton(
-                icon: Icons.email,
-                title: isArabic ? 'البريد الإلكتروني' : 'Email',
-                subtitle: isArabic ? 'أنشئ حسابًا أو تسجيل دخول' : 'Create account or sign in',
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const FirebaseLoginScreen(),
-                    ),
-                  );
-                },
-                isDark: isDark,
-              ),
-              const SizedBox(height: 16),
-              // Google Button
-              _AuthMethodButton(
-                icon: Icons.g_mobiledata,
-                title: 'Google',
-                subtitle: canUseGoogle
-                    ? (isArabic ? 'دخول سريع مع Google' : 'Quick sign in with Google')
-                    : (isArabic ? 'غير مفعّل حالياً' : 'Not configured yet'),
-                onPressed: () {
-                  _signInWithGoogle(context, isArabic, canUseGoogle);
-                },
-                isDark: isDark,
-                isEnabled: canUseGoogle,
-              ),
-              const SizedBox(height: 16),
-              // Phone Button
-              _AuthMethodButton(
-                icon: Icons.phone,
-                title: isArabic ? 'رقم الهاتف' : 'Phone',
-                subtitle: isArabic 
-                    ? 'يتطلب ترقية Identity Platform' 
-                    : 'Requires Identity Platform upgrade',
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const PhoneLoginScreen(),
-                    ),
-                  );
-                },
-                isDark: isDark,
-                isEnabled: true,  // Show as available but will warn about upgrade
-              ),
               const SizedBox(height: 48),
-              // Development Mode - Mock Login
-              if (true) // Toggle this flag based on environment
-                Column(
-                  children: [
-                    Divider(color: isDark ? Colors.grey[800] : Colors.grey[300]),
-                    const SizedBox(height: 16),
-                    Text(
-                      isArabic ? 'وضع التطوير' : 'Development Mode',
-                      style: TextStyle(
-                        color: isDark ? Colors.grey[400] : Colors.grey[600],
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _AuthMethodButton(
-                      icon: Icons.code,
-                      title: isArabic ? 'تسجيل دخول وهمي' : 'Mock Login',
-                      subtitle: isArabic ? 'للاختبار فقط' : 'For testing only',
-                      onPressed: () {
-                        _showMockLoginDialog(context, isArabic);
-                      },
-                      isDark: isDark,
-                      isMockMode: true,
-                    ),
-                  ],
-                ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  void _signInWithGoogle(
-    BuildContext context,
-    bool isArabic,
-    bool canUseGoogle,
-  ) async {
-    if (!canUseGoogle) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            isArabic
-                ? 'تسجيل Google غير مفعّل حالياً. استخدم البريد الإلكتروني.'
-                : 'Google sign-in is not configured yet. Use Email sign-in.',
-          ),
-        ),
-      );
-      return;
-    }
-
-    final auth = Provider.of<UnifiedAuthProvider>(context, listen: false);
-    
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
-
-    try {
-      final result = await auth.signInWithGoogle();
-      if (!context.mounted) return;
-      Navigator.pop(context); // Dismiss loading dialog
-
-      if (result.success) {
-        // Navigate to main app
-        // This will be handled by auth state listener in main app
-        Navigator.of(context).pushReplacementNamed('/main');
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_mapGoogleError(result.error, isArabic))),
-        );
-      }
-    } catch (e) {
-      if (!context.mounted) return;
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_mapGoogleError(e.toString(), isArabic))),
-      );
-    }
-  }
-
-  String _mapGoogleError(String? raw, bool isArabic) {
-    final text = (raw ?? '').toLowerCase();
-    if (text.contains('apiexception: 10') || text.contains('sign_in_failed')) {
-      return isArabic
-          ? 'Google غير مهيأ على Android (خطأ 10). فعّل Google Sign-In في Firebase وأضف SHA-1/ SHA-256 ثم أعد تنزيل google-services.json.'
-          : 'Google is not configured on Android (error 10). Enable Google Sign-In in Firebase, add SHA-1/SHA-256, then download a fresh google-services.json.';
-    }
-    return raw ?? (isArabic ? 'فشل تسجيل الدخول عبر Google' : 'Google sign in failed');
-  }
-
-  void _showMockLoginDialog(BuildContext context, bool isArabic) {
-    final emailController = TextEditingController();
-    final passwordController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(isArabic ? 'تسجيل دخول وهمي' : 'Mock Login'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: emailController,
-              decoration: InputDecoration(
-                hintText: isArabic ? 'البريد الإلكتروني' : 'Email',
-                prefixText: 'student@',
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: passwordController,
-              obscureText: true,
-              decoration: InputDecoration(
-                hintText: isArabic ? 'كلمة المرور' : 'Password',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(isArabic ? 'إلغاء' : 'Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              final auth = Provider.of<UnifiedAuthProvider>(
-                context,
-                listen: false,
-              );
-              final email = '${emailController.text}iu.edu.co';
-              final password = passwordController.text;
-
-              final result = await auth.mockLogin(email, password);
-              
-              if (context.mounted) {
-                Navigator.pop(context);
-                if (result.success) {
-                  Navigator.of(context).pushReplacementNamed('/main');
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(result.error ?? 'Login failed')),
-                  );
-                }
-              }
-            },
-            child: Text(isArabic ? 'دخول' : 'Sign In'),
-          ),
-        ],
       ),
     );
   }
@@ -312,7 +112,6 @@ class _AuthMethodButton extends StatelessWidget {
   final String subtitle;
   final VoidCallback onPressed;
   final bool isDark;
-  final bool isMockMode;
   final bool isEnabled;
 
   const _AuthMethodButton({
@@ -321,18 +120,15 @@ class _AuthMethodButton extends StatelessWidget {
     required this.subtitle,
     required this.onPressed,
     required this.isDark,
-    this.isMockMode = false,
     this.isEnabled = true,
   });
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: isMockMode
-          ? Colors.transparent
-          : (isEnabled
-              ? (isDark ? Colors.grey[900] : Colors.grey[100])
-              : (isDark ? Colors.grey[850] : Colors.grey[200])),
+      color: isEnabled
+        ? (isDark ? Colors.grey[900] : Colors.grey[100])
+        : (isDark ? Colors.grey[850] : Colors.grey[200]),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: isEnabled ? onPressed : null,
@@ -340,11 +136,9 @@ class _AuthMethodButton extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             border: Border.all(
-              color: isMockMode
-                  ? Colors.grey
-                  : (isEnabled
-                      ? (isDark ? Colors.grey[800]! : Colors.grey[300]!)
-                      : (isDark ? Colors.grey[700]! : Colors.grey[400]!)),
+              color: isEnabled
+                  ? (isDark ? Colors.grey[800]! : Colors.grey[300]!)
+                  : (isDark ? Colors.grey[700]! : Colors.grey[400]!),
             ),
             borderRadius: BorderRadius.circular(12),
           ),

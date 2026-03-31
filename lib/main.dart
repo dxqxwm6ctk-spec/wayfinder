@@ -7,9 +7,12 @@ import 'core/services/firebase_service.dart';
 import 'core/services/microsoft_auth_service.dart';
 import 'data/datasources/mock_data_source.dart';
 import 'data/datasources/remote/remote_api_data_source.dart';
+import 'data/repositories/auth_repository_impl.dart';
 import 'data/repositories/transit_repository_impl.dart';
 import 'domain/usecases/get_transit_dashboard.dart';
+import 'domain/usecases/login_user.dart';
 import 'presentation/providers/app_settings_provider.dart';
+import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/navigation_provider.dart';
 import 'presentation/providers/transit_provider.dart';
 import 'presentation/providers/unified_auth_provider.dart';
@@ -75,6 +78,13 @@ class WayfinderApp extends StatelessWidget {
         ChangeNotifierProvider<AppSettingsProvider>(
           create: (_) => AppSettingsProvider(),
         ),
+        ChangeNotifierProvider<AuthProvider>(
+          create: (_) => AuthProvider(
+            LoginUser(
+              AuthRepositoryImpl(remoteApiDataSource: remoteDataSource),
+            ),
+          ),
+        ),
         ChangeNotifierProvider<UnifiedAuthProvider>(
           create: (_) => UnifiedAuthProvider(
             firebaseService: firebaseService,
@@ -109,7 +119,23 @@ class WayfinderApp extends StatelessWidget {
             routes: <String, WidgetBuilder>{
               '/main': (_) => const MainShellScreen(),
             },
-            home: const RoleSelectionScreen(),
+            home: Consumer<UnifiedAuthProvider>(
+              builder: (BuildContext context, UnifiedAuthProvider auth, Widget? _) {
+                if (!auth.isAuthStateReady) {
+                  return const Scaffold(
+                    body: Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+
+                if (auth.isAuthenticated) {
+                  return const MainShellScreen();
+                }
+
+                return const RoleSelectionScreen();
+              },
+            ),
           );
         },
       ),

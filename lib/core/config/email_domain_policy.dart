@@ -4,7 +4,19 @@ class EmailDomainPolicy {
     defaultValue: 'iu.edu.jo,iu.edu.co,.edu.jo,.edu.co',
   );
 
+  static const String _rawMicrosoftAllowedDomains = String.fromEnvironment(
+    'MICROSOFT_ALLOWED_EMAIL_DOMAINS',
+    defaultValue: 'iu.edu.jo',
+  );
+
   static List<String> get allowedDomains => _rawAllowedDomains
+      .split(',')
+      .map((String value) => value.trim().toLowerCase())
+      .where((String value) => value.isNotEmpty)
+      .toSet()
+      .toList();
+
+  static List<String> get microsoftAllowedDomains => _rawMicrosoftAllowedDomains
       .split(',')
       .map((String value) => value.trim().toLowerCase())
       .where((String value) => value.isNotEmpty)
@@ -13,7 +25,15 @@ class EmailDomainPolicy {
 
   static bool isAllowedStudentEmail(String value) {
     final String email = value.trim().toLowerCase();
-    final List<String> domains = allowedDomains;
+    return _isAllowedByDomains(email, allowedDomains);
+  }
+
+  static bool isAllowedMicrosoftEmail(String value) {
+    final String email = value.trim().toLowerCase();
+    return _isAllowedByDomains(email, microsoftAllowedDomains);
+  }
+
+  static bool _isAllowedByDomains(String email, List<String> domains) {
     if (email.isEmpty || !email.contains('@') || domains.isEmpty) {
       return false;
     }

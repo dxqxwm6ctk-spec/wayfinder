@@ -39,14 +39,24 @@ class AuthResult {
 
 /// Unified authentication provider combining Firebase and Microsoft
 class UnifiedAuthProvider extends ChangeNotifier {
+  static final RegExp _busNumberPattern = RegExp(r'^[A-Za-z0-9-]{1,12}$');
+
   final FirebaseService _firebaseService;
   final MicrosoftAuthService _microsoftAuthService;
 
   firebase.User? _currentUser;
   String? _currentEmail;
   String? _currentName;
+  String? _studentId;
+  String? _studentRole;
+  String? _studentMajor;
+  String? _studentPhone;
+  String? _defaultPickupArea;
+  String? _usualBusNumber;
   AuthMethod? _lastAuthMethod;
   bool _isLoading = false;
+  bool _isProfileLoading = false;
+  bool _isAuthStateReady = false;
   String? _authError;
   String? _microsoftRefreshToken;
 
@@ -71,8 +81,16 @@ class UnifiedAuthProvider extends ChangeNotifier {
   firebase.User? get currentUser => _currentUser;
   String? get currentEmail => _currentEmail;
   String? get currentName => _currentName;
+  String? get studentId => _studentId;
+  String? get studentRole => _studentRole;
+  String? get studentMajor => _studentMajor;
+  String? get studentPhone => _studentPhone;
+  String? get defaultPickupArea => _defaultPickupArea;
+  String? get usualBusNumber => _usualBusNumber;
   bool get isAuthenticated => _currentUser != null || _currentEmail != null;
   bool get isLoading => _isLoading;
+  bool get isProfileLoading => _isProfileLoading;
+  bool get isAuthStateReady => _isAuthStateReady;
   String? get authError => _authError;
   AuthMethod? get lastAuthMethod => _lastAuthMethod;
   List<String> get allowedDomains => EmailDomainPolicy.allowedDomains;
@@ -81,11 +99,14 @@ class UnifiedAuthProvider extends ChangeNotifier {
   void _initializeAuthListener() {
     _firebaseService.authStateChanges().listen((user) {
       _currentUser = user;
+      _isAuthStateReady = true;
       if (user != null) {
         _currentEmail = user.email;
         _currentName = user.displayName;
         _lastAuthMethod = AuthMethod.firebase;
         _loadUserDataFromFirestore(user.uid);
+      } else {
+        _clearProfileFields();
       }
       notifyListeners();
     });
@@ -93,13 +114,122 @@ class UnifiedAuthProvider extends ChangeNotifier {
 
   /// Load additional user data from Firestore
   Future<void> _loadUserDataFromFirestore(String uid) async {
+    _isProfileLoading = true;
+    notifyListeners();
+
     try {
-      final doc = await _firebaseService.getUserData(uid);
-      // Store additional user data like role, zone preferences, etc.
+      final doc = await _firebaseService
+          .getUserData(uid)
+          .timeout(const Duration(seconds: 10));
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>? ?? <String, dynamic>{};
+
+        _currentName = _readStringValue(data, <String>[
+              'name',
+              'fullName',
+              'displayName',
+            ]) ??
+            _currentName;
+        _currentEmail = _readStringValue(data, <String>['email']) ?? _currentEmail;
+        _studentId = _readStringValue(data, <String>['studentId', 'universityId', 'id']);
+        _studentRole = _readStringValue(data, <String>['role']);
+        _studentMajor = _readStringValue(data, <String>['major', 'faculty', 'department']);
+        _studentPhone = _readStringValue(data, <String>['phone', 'phoneNumber']);
+        _defaultPickupArea = _readStringValue(data, <String>[
+          'defaultPickupArea',
+          'defaultPickup',
+          'preferredPickupArea',
+        ]);
+        _usualBusNumber = _readStringValue(data, <String>[
+          'usualBusNumber',
+          'regularBusNumber',
+          'busNumber',
+        ]);
+      }
+
       debugPrint('User data loaded: ${doc.data()}');
     } catch (e) {
       debugPrint('Error loading user data: $e');
+    } finally {
+      _isProfileLoading = false;
+      notifyListeners();
     }
+  }
+
+  String? _readStringValue(Map<String, dynamic> data, List<String> keys) {
+    for (final String key in keys) {
+      final dynamic value = data[key];
+      if (value == null) {
+        continue;
+      }
+
+      final String normalized = value.toString().trim();
+      if (normalized.isNotEmpty) {
+        return normalized;
+      }
+    }
+    return null;
+  }
+
+  void _clearProfileFields() {
+    _currentEmail = null;
+    _currentName = null;
+    _studentId = null;
+    _studentRole = null;
+    _studentMajor = null;
+    _studentPhone = null;
+    _defaultPickupArea = null;
+    _usualBusNumber = null;
+  }
+
+  /// Update only editable student profile fields.
+  Future<bool> updateEditableStudentProfile({
+    required String defaultPickupArea,
+    required String usualBusNumber,
+  }) async {
+    final firebase.User? user = _currentUser;
+    if (user == null) {
+      _authError = 'Not signed in.';
+      notifyListeners();
+      return false;
+    }
+
+    final String pickup = defaultPickupArea.trim();
+    final String bus = usualBusNumber.trim().toUpperCase().replaceAll(' ', '');
+
+    if (bus.isNotEmpty && !_busNumberPattern.hasMatch(bus)) {
+      _authError =
+          'Invalid bus number format. Use letters, numbers, or dash only (max 12 chars).';
+      notifyListeners();
+      return false;
+    }
+
+    _authError = null;
+    _defaultPickupArea = pickup;
+    _usualBusNumber = bus;
+    notifyListeners();
+
+    // Save in background so weak network does not block the UI.
+    Future.microtask(() async {
+      try {
+        await _firebaseService
+            .saveUserData(
+              user.uid,
+              <String, dynamic>{
+                'defaultPickupArea': pickup,
+                'usualBusNumber': bus,
+                'updatedAt': FieldValue.serverTimestamp(),
+              },
+            )
+            .timeout(const Duration(seconds: 10));
+      } catch (e) {
+        _authError =
+            'Changes saved locally. Network is weak, will sync when connection improves.';
+        notifyListeners();
+      }
+    });
+
+    return true;
   }
 
   /// Sign up with Firebase (email/password)
@@ -324,7 +454,9 @@ class UnifiedAuthProvider extends ChangeNotifier {
 
     try {
       await _firebaseService.initialize();
-      final credential = await _firebaseService.signInWithMicrosoft();
+      final credential = await _firebaseService
+          .signInWithMicrosoft()
+          .timeout(const Duration(seconds: 60));
 
       if (credential?.user == null) {
         throw Exception('Microsoft authentication cancelled');
@@ -333,9 +465,9 @@ class UnifiedAuthProvider extends ChangeNotifier {
       final firebase.User user = credential!.user!;
       final String email = user.email ?? '';
 
-      if (!EmailDomainPolicy.isAllowedStudentEmail(email)) {
+      if (!EmailDomainPolicy.isAllowedMicrosoftEmail(email)) {
         await _firebaseService.signOut();
-        throw Exception('Email domain not allowed');
+        throw Exception('Microsoft email domain not allowed');
       }
 
       _currentUser = user;
@@ -344,16 +476,29 @@ class UnifiedAuthProvider extends ChangeNotifier {
       _lastAuthMethod = AuthMethod.microsoft;
       _microsoftRefreshToken = null;
 
-      await _firebaseService.firestore.collection('users').doc(user.uid).set({
-        'email': _currentEmail,
-        'name': _currentName,
-        'authMethod': 'microsoft',
-        'role': 'student',
-        'lastLogin': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      // Do not block navigation on network-dependent writes/subscriptions.
+      Future.microtask(() async {
+        try {
+          await _firebaseService
+              .firestore
+              .collection('users')
+              .doc(user.uid)
+              .set({
+                'email': _currentEmail,
+                'name': _currentName,
+                'authMethod': 'microsoft',
+                'role': 'student',
+                'lastLogin': FieldValue.serverTimestamp(),
+              }, SetOptions(merge: true))
+              .timeout(const Duration(seconds: 8), onTimeout: () {});
 
-      // Subscribe to topics
-      await _firebaseService.subscribeToTopic('all_students');
+          await _firebaseService
+              .subscribeToTopic('all_students')
+              .timeout(const Duration(seconds: 5), onTimeout: () {});
+        } catch (e) {
+          debugPrint('Microsoft post sign-in tasks error: $e');
+        }
+      });
 
       notifyListeners();
       return AuthResult(
@@ -435,8 +580,7 @@ class UnifiedAuthProvider extends ChangeNotifier {
     try {
       await _firebaseService.signOut();
       _currentUser = null;
-      _currentEmail = null;
-      _currentName = null;
+      _clearProfileFields();
       _microsoftRefreshToken = null;
       _lastAuthMethod = null;
       _authError = null;
@@ -527,8 +671,25 @@ class UnifiedAuthProvider extends ChangeNotifier {
       return 'Please use your university email only. Allowed domains: $domains';
     }
 
+    if (raw.contains('Microsoft email domain not allowed')) {
+      final String domains = EmailDomainPolicy.microsoftAllowedDomains.join(', ');
+      return 'Microsoft sign-in is limited to Isra University accounts only. Allowed domains: $domains';
+    }
+
     if (raw.contains('Microsoft Entra is not configured')) {
       return 'Microsoft sign-in is not configured yet. Missing MICROSOFT_CLIENT_ID. Add it with --dart-define=MICROSOFT_CLIENT_ID=...';
+    }
+
+    if (raw.contains('AADSTS700016')) {
+      return 'Microsoft app is not available in your organization tenant yet. Ask your university IT admin to grant consent for this app, or use an app registration created inside your university tenant.';
+    }
+
+    if (raw.contains('TimeoutException')) {
+      return 'Microsoft sign-in took too long. Please try again and return to the app after approving permissions.';
+    }
+
+    if (raw.contains('consent') && raw.contains('tenant')) {
+      return 'Microsoft sign-in requires tenant admin consent. Ask your university IT admin to approve this app.';
     }
 
     if (raw.toUpperCase().contains('CONFIGURATION_NOT_FOUND')) {

@@ -142,7 +142,7 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                               .map(
                                 (String area) => DropdownMenuItem<String>(
                                   value: area,
-                                  child: Text(strings.localizePickupArea(area)),
+                                  child: Text(area),
                                 ),
                               )
                               .toList(),
@@ -163,8 +163,6 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                           setState(() {
                             _lastSummary = summary;
                           });
-                          final String localizedArea =
-                              strings.localizePickupArea(summary.area);
                           final String busText = summary.busNumber == null ||
                                   summary.busNumber!.trim().isEmpty
                               ? strings.noBusAssigned
@@ -172,7 +170,7 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                '${strings.selectedArea}: $localizedArea | '
+                                '${strings.selectedArea}: ${summary.area} | '
                                 '${strings.currentlyWaiting}: ${summary.studentsWaiting} ${strings.students} | '
                                 '${strings.assignedBus}: $busText',
                               ),
@@ -184,7 +182,7 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                         const SizedBox(height: 20),
                         InfoCard(
                           title: strings.selectedArea,
-                          value: strings.localizePickupArea(_lastSummary!.area),
+                          value: _lastSummary!.area,
                         ),
                         const SizedBox(height: 12),
                         Row(

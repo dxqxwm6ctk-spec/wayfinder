@@ -211,13 +211,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     try {
-      // TODO: Implement actual phone verification
-      // final result = await auth.sendPhoneVerificationCode(phone);
-      // if (result) {
-      //   setState(() => _codeSent = true);
-      // }
-      
-      // For now, show message
+      // Phone sign-in is intentionally disabled until Identity Platform is enabled.
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -238,13 +232,16 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     try {
-      // TODO: Implement actual phone verification
-      // final result = await auth.signInWithPhoneVerificationCode(_verificationId, code);
-      // if (result.success) {
-      //   if (context.mounted) {
-      //     Navigator.of(context).pushReplacementNamed('/main');
-      //   }
-      // }
+      // Phone verification remains disabled until Identity Platform is enabled.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isArabic
+              ? 'التحقق عبر الهاتف غير متاح حالياً. استخدم البريد الإلكتروني أو Microsoft.'
+              : 'Phone verification is currently unavailable. Use Email or Microsoft sign-in.',
+          ),
+        ),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString())),
