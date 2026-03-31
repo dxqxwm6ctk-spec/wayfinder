@@ -207,6 +207,26 @@ class FirebaseService {
     }
   }
 
+  /// Sign in with Microsoft tokens obtained from AppAuth.
+  Future<UserCredential?> signInWithMicrosoftTokens({
+    required String accessToken,
+    String? idToken,
+  }) async {
+    try {
+      await _ensureInitialized();
+      final OAuthCredential credential = OAuthProvider(
+        'microsoft.com',
+      ).credential(
+        accessToken: accessToken,
+        idToken: idToken,
+      );
+      return await auth.signInWithCredential(credential);
+    } catch (e) {
+      debugPrint('Microsoft token signin error: $e');
+      rethrow;
+    }
+  }
+
   /// Sign out
   Future<void> signOut() async {
     try {

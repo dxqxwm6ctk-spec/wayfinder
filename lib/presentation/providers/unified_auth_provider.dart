@@ -454,9 +454,36 @@ class UnifiedAuthProvider extends ChangeNotifier {
 
     try {
       await _firebaseService.initialize();
-      final credential = await _firebaseService
-          .signInWithMicrosoft()
-          .timeout(const Duration(seconds: 60));
+      firebase.UserCredential? credential;
+
+      try {
+        credential = await _firebaseService
+            .signInWithMicrosoft()
+            .timeout(const Duration(seconds: 60));
+      } catch (e) {
+        final String raw = e.toString().toLowerCase();
+        if (!raw.contains('invalid-cert-hash') && !raw.contains('invalid_cert_hash')) {
+          rethrow;
+        }
+
+        // Fallback for Android cert-hash mismatch: use AppAuth then Firebase credential.
+        final MicrosoftAuthResult? microsoftResult = await _microsoftAuthService
+            .signInWithMicrosoft()
+            .timeout(const Duration(seconds: 60));
+
+        if (microsoftResult == null || microsoftResult.accessToken.isEmpty) {
+          throw Exception('Microsoft authentication cancelled');
+        }
+
+        credential = await _firebaseService
+            .signInWithMicrosoftTokens(
+              accessToken: microsoftResult.accessToken,
+              idToken: microsoftResult.idToken,
+            )
+            .timeout(const Duration(seconds: 60));
+
+        _microsoftRefreshToken = microsoftResult.refreshToken;
+      }
 
       if (credential?.user == null) {
         throw Exception('Microsoft authentication cancelled');
@@ -694,6 +721,10 @@ class UnifiedAuthProvider extends ChangeNotifier {
 
     if (raw.toUpperCase().contains('CONFIGURATION_NOT_FOUND')) {
       return 'Firebase Android config is incomplete. Enable Email/Password in Firebase Authentication and verify the Android app package name is com.example.wayfinder.';
+    }
+
+    if (raw.contains('invalid-cert-hash') || raw.contains('invalid_cert_hash')) {
+      return 'Android certificate hash is not registered in Firebase for com.example.wayfinder. Add your current app SHA-1/SHA-256 in Firebase Console > Project settings > Android app, then download a fresh google-services.json and rebuild the app.';
     }
 
     return raw;
