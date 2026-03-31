@@ -33,13 +33,15 @@ class _CustomButtonState extends State<CustomButton> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     final Widget content = widget.isLoading
         ? const SizedBox(
-            width: 24,
-            height: 24,
+            width: 22,
+            height: 22,
             child: CircularProgressIndicator(
-              strokeWidth: 2.8,
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0A2D63)),
+              strokeWidth: 2.4,
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.textPrimary),
             ),
           )
         : Row(
@@ -49,18 +51,20 @@ class _CustomButtonState extends State<CustomButton> {
                 widget.label,
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
                       color: widget.filled
-                          ? const Color(0xFF082A63)
-                          : AppColors.accentLight,
-                      fontSize: 14,
+                      ? const Color(0xFFF4F8FF)
+                      : (isDark ? AppColors.textPrimary : AppColors.accent),
+                  fontSize: 14.5,
+                  letterSpacing: 0.2,
                     ),
               ),
               if (widget.icon != null) ...<Widget>[
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Icon(
                   widget.icon,
                   color: widget.filled
-                      ? const Color(0xFF082A63)
-                      : AppColors.accentLight,
+                      ? const Color(0xFFF4F8FF)
+                      : (isDark ? AppColors.accentLight : AppColors.accent),
+                  size: 19,
                 ),
               ],
             ],
@@ -77,26 +81,28 @@ class _CustomButtonState extends State<CustomButton> {
         child: Container(
           decoration: BoxDecoration(
             gradient: widget.filled
-                ? const LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: <Color>[AppColors.accentLight, AppColors.accent],
-                  )
+                ? AppColors.primaryGradient
                 : null,
-            color: widget.filled ? null : Colors.transparent,
+            color: widget.filled
+                ? null
+                : (isDark
+                    ? Colors.white.withValues(alpha: 0.04)
+                    : Colors.white.withValues(alpha: 0.9)),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: widget.filled
-                  ? Colors.transparent
-                  : AppColors.textSecondary.withValues(alpha: 0.15),
+                  ? (isDark
+                      ? Colors.white.withValues(alpha: 0.18)
+                      : Colors.white.withValues(alpha: 0.45))
+                  : AppColors.textSecondary.withValues(alpha: 0.22),
             ),
             boxShadow: widget.filled
                 ? <BoxShadow>[
                     BoxShadow(
-                      color: AppColors.accent.withValues(alpha: 0.34),
-                      blurRadius: 28,
-                      spreadRadius: 1,
-                      offset: const Offset(0, 14),
+                      color: AppColors.accent.withValues(alpha: isDark ? 0.38 : 0.24),
+                      blurRadius: isDark ? 26 : 18,
+                      spreadRadius: -6,
+                      offset: Offset(0, isDark ? 14 : 10),
                     ),
                   ]
                 : const <BoxShadow>[],
@@ -107,7 +113,7 @@ class _CustomButtonState extends State<CustomButton> {
               borderRadius: BorderRadius.circular(20),
               onTap: widget.isLoading ? null : widget.onPressed,
               child: SizedBox(
-                height: 62,
+                height: 56,
                 child: Center(child: content),
               ),
             ),

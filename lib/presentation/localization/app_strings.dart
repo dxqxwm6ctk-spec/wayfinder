@@ -76,11 +76,19 @@ class AppStrings {
   String get confirmRequest =>
       isArabic ? 'تأكيد الطلب' : 'CONFIRM REQUEST';
   String get executeRequest => isArabic ? 'تنفيذ الطلب' : 'EXECUTE REQUEST';
+        String get cancelRequest => isArabic ? 'إلغاء الرحلة' : 'Cancel Ride';
+        String get noActiveRequest => isArabic ? 'لا يوجد طلب رحلة لإلغائه.' : 'No active ride request to cancel.';
   String get turnOnImmediateHint => isArabic
       ? 'فعّل الاستلام الفوري لتحديد المنطقة وتنفيذ الطلب.'
       : 'Turn on immediate pickup to select area and execute request.';
   String get requestSummaryTitle =>
       isArabic ? 'تفاصيل التنفيذ' : 'Execution Summary';
+    String requestCancelledFor(String area) => isArabic
+        ? 'تم إلغاء الرحلة لمنطقة $area'
+        : 'Ride request cancelled for $area';
+      String busAssignedToYourArea(String area, String bus) => isArabic
+          ? 'تم وضع باص لمنطقتك ($area) رقم $bus'
+          : 'A bus has been assigned to your area ($area): $bus';
   String get selectedArea => isArabic ? 'المنطقة' : 'Area';
   String get assignedBus => isArabic ? 'رقم الباص' : 'Bus Number';
   String get noBusAssigned => isArabic ? 'لا يوجد باص مخصص' : 'No bus assigned';

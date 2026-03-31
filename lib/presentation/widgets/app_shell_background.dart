@@ -18,30 +18,38 @@ class AppShellBackground extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: isDark
-              ? const <Color>[Color(0xFF070B14), Color(0xFF030406)]
-              : const <Color>[Color(0xFFF8FAFF), Color(0xFFEFF4FF)],
-        ),
+        gradient: isDark
+            ? AppColors.navyGradient
+            : const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: <Color>[Color(0xFFF7FAFF), Color(0xFFEAF2FF)],
+              ),
       ),
       child: Stack(
         children: <Widget>[
           Positioned(
-            top: -120,
-            right: -120,
+            top: -150,
+            right: -100,
             child: _GlowOrb(
-              size: 260,
-              color: AppColors.accent.withValues(alpha: isDark ? 0.12 : 0.09),
+              size: 280,
+              color: AppColors.accentElectric.withValues(alpha: isDark ? 0.2 : 0.11),
             ),
           ),
           Positioned(
-            top: 220,
-            left: -80,
+            top: 240,
+            left: -60,
             child: _GlowOrb(
-              size: 180,
-              color: AppColors.accentLight.withValues(alpha: isDark ? 0.08 : 0.06),
+              size: 190,
+              color: AppColors.accentLight.withValues(alpha: isDark ? 0.13 : 0.08),
+            ),
+          ),
+          Positioned(
+            bottom: -130,
+            right: -30,
+            child: _GlowOrb(
+              size: 220,
+              color: AppColors.surfaceSoft.withValues(alpha: isDark ? 0.35 : 0.15),
             ),
           ),
           SafeArea(

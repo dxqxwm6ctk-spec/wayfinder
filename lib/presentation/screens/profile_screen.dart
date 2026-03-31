@@ -63,20 +63,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
-  void _syncControllers(UnifiedAuthProvider auth, AppStrings strings) {
+  void _syncControllers(UnifiedAuthProvider auth) {
     if (_isEditing) {
       return;
     }
 
-    // Check if the saved location exists in the current list
     final String? savedLocation = auth.defaultPickupArea?.trim().isNotEmpty == true
         ? auth.defaultPickupArea!.trim()
         : null;
-    
+
     _selectedLocation = (savedLocation != null && _pickupLocations.contains(savedLocation))
         ? savedLocation
-        : _pickupLocations.first; // Default to first location if not found
-    
+        : _pickupLocations.first;
+
     _busController.text = auth.usualBusNumber?.trim() ?? '';
   }
 
@@ -166,7 +165,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final AppSettingsProvider settings = context.watch<AppSettingsProvider>();
     final UnifiedAuthProvider auth = context.watch<UnifiedAuthProvider>();
     final AppStrings strings = AppStrings(isArabic: settings.isArabic);
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final bool isArabic = settings.isArabic;
 
     final String displayName = auth.currentName?.trim().isNotEmpty == true
@@ -194,17 +192,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ? auth.usualBusNumber!.trim()
       : (isArabic ? 'غير متوفر' : 'Not available');
 
-    _syncControllers(auth, strings);
+    _syncControllers(auth);
 
     return Scaffold(
       body: AppShellBackground(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.only(bottom: 20),
+          padding: const EdgeInsets.only(bottom: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               HeaderRow(title: strings.appName),
-              const SizedBox(height: 26),
+              const SizedBox(height: 24),
               Text(
                 strings.profileTitle,
                 style: Theme.of(context).textTheme.headlineLarge,
@@ -214,40 +212,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 strings.profileSubtitle,
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
-              const SizedBox(height: 30),
-              Container(
-                width: double.infinity,
+              const SizedBox(height: 24),
+              _GlassPanel(
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.surface : Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.05)
-                        : Colors.black.withValues(alpha: 0.07),
-                  ),
-                ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    if (auth.isProfileLoading) ...<Widget>[
-                      const LinearProgressIndicator(minHeight: 3),
-                      const SizedBox(height: 14),
-                    ],
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: <Widget>[
-                        Text(
-                          isArabic ? 'البيانات الأساسية' : 'Basic Information',
-                          style: Theme.of(context).textTheme.titleMedium,
+                        Container(
+                          width: 64,
+                          height: 64,
+                          decoration: BoxDecoration(
+                            gradient: AppColors.primaryGradient,
+                            borderRadius: BorderRadius.circular(22),
+                          ),
+                          child: Center(
+                            child: Text(
+                              (displayName.isNotEmpty ? displayName.characters.first : 'S').toUpperCase(),
+                              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
                         ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                displayName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.headlineMedium,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                displayEmail,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         if (!_isEditing)
-                          TextButton.icon(
+                          IconButton.filledTonal(
                             onPressed: (_isSaving || auth.isProfileLoading)
                                 ? null
                                 : () => setState(() => _isEditing = true),
-                            icon: const Icon(Icons.edit, size: 18),
-                            label: Text(isArabic ? 'تعديل' : 'Edit'),
+                            icon: const Icon(Icons.edit_rounded),
                           )
                         else
                           TextButton(
@@ -255,29 +270,82 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ? null
                                 : () {
                                     setState(() => _isEditing = false);
-                                    _syncControllers(auth, strings);
+                                    _syncControllers(auth);
                                   },
                             child: Text(isArabic ? 'إلغاء' : 'Cancel'),
                           ),
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    if (auth.isProfileLoading) ...<Widget>[
+                      const SizedBox(height: 16),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: const LinearProgressIndicator(minHeight: 4),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              _GlassPanel(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
                     Text(
-                      displayName,
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      displayEmail,
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      isArabic ? 'المعلومات الأساسية' : 'Personal Details',
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 16),
+                    _ProfileMetaRow(
+                      icon: Icons.badge_outlined,
+                      label: isArabic ? 'الرقم الجامعي' : 'Student ID',
+                      value: displayStudentId,
+                    ),
+                    const SizedBox(height: 12),
+                    _ProfileMetaRow(
+                      icon: Icons.school_outlined,
+                      label: isArabic ? 'التخصص' : 'Major / Faculty',
+                      value: displayMajor,
+                    ),
+                    const SizedBox(height: 12),
+                    _ProfileMetaRow(
+                      icon: Icons.phone_outlined,
+                      label: isArabic ? 'رقم الهاتف' : 'Phone Number',
+                      value: displayPhone,
+                    ),
+                    const SizedBox(height: 12),
+                    _ProfileMetaRow(
+                      icon: Icons.verified_user_outlined,
+                      label: isArabic ? 'الدور' : 'Role',
+                      value: displayRole,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              _GlassPanel(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      isArabic ? 'تفضيلات الرحلة' : 'Ride Preferences',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      isArabic
+                          ? 'يمكنك تعديل السكن/الانطلاق ورقم الباص فقط.'
+                          : 'Only home pickup and bus number are editable.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 14),
                     if (_isEditing) ...<Widget>[
                       DropdownButtonFormField<String>(
                         initialValue: _selectedLocation,
                         decoration: InputDecoration(
                           labelText: isArabic ? 'السكن/نقطة الانطلاق' : 'Home / Pickup Location',
-                          border: const OutlineInputBorder(),
                         ),
                         items: _pickupLocations.map((String location) {
                           return DropdownMenuItem<String>(
@@ -289,89 +357,84 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           setState(() => _selectedLocation = newValue);
                         },
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
                       TextField(
                         controller: _busController,
                         textInputAction: TextInputAction.done,
                         decoration: InputDecoration(
                           labelText: isArabic ? 'رقم الباص المعتاد' : 'Usual Bus Number',
-                          border: const OutlineInputBorder(),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: (_isSaving || auth.isProfileLoading)
-                              ? null
-                              : () => _saveEditableFields(auth, isArabic),
-                          child: _isSaving
-                              ? const SizedBox(
-                                  height: 18,
-                                  width: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : Text(isArabic ? 'حفظ' : 'Save'),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: AppColors.primaryGradient,
+                            borderRadius: BorderRadius.circular(18),
+                            boxShadow: <BoxShadow>[
+                              BoxShadow(
+                                color: AppColors.accent.withValues(alpha: 0.36),
+                                blurRadius: 24,
+                                spreadRadius: -10,
+                                offset: const Offset(0, 14),
+                              ),
+                            ],
+                          ),
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                            ),
+                            onPressed: (_isSaving || auth.isProfileLoading)
+                                ? null
+                                : () => _saveEditableFields(auth, isArabic),
+                            child: _isSaving
+                                ? const SizedBox(
+                                    height: 18,
+                                    width: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : Text(isArabic ? 'حفظ التغييرات' : 'Save Changes'),
+                          ),
                         ),
                       ),
                     ] else ...<Widget>[
-                      Text(
-                        displayPickup,
-                        style: Theme.of(context).textTheme.bodyMedium,
+                      _ProfileMetaRow(
+                        icon: Icons.place_outlined,
+                        label: isArabic ? 'السكن/الانطلاق' : 'Home / Pickup',
+                        value: displayPickup,
                       ),
-                      const SizedBox(height: 10),
-                      _ProfileInfoTile(
+                      const SizedBox(height: 12),
+                      _ProfileMetaRow(
+                        icon: Icons.directions_bus_outlined,
                         label: isArabic ? 'رقم الباص المعتاد' : 'Usual Bus Number',
                         value: displayBus,
                       ),
                     ],
-                    const SizedBox(height: 20),
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: _ProfileInfoTile(
-                            label: isArabic ? 'الرقم الجامعي' : 'Student ID',
-                            value: displayStudentId,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _ProfileInfoTile(
-                            label: isArabic ? 'الدور' : 'Role',
-                            value: displayRole,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    _ProfileInfoTile(
-                      label: isArabic ? 'التخصص' : 'Major / Faculty',
-                      value: displayMajor,
-                    ),
-                    const SizedBox(height: 10),
-                    _ProfileInfoTile(
-                      label: isArabic ? 'رقم الهاتف' : 'Phone Number',
-                      value: displayPhone,
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      isArabic
-                          ? 'يمكنك تعديل السكن/الانطلاق ورقم الباص فقط. الاسم والبريد وباقي البيانات للعرض فقط.'
-                          : 'Only home/pickup and usual bus number are editable. Name, email, and other fields are read-only.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: (_isSaving || auth.isLoading)
-                            ? null
-                            : () => _signOut(auth, isArabic),
-                        icon: const Icon(Icons.logout),
-                        label: Text(isArabic ? 'تسجيل خروج' : 'Sign Out'),
-                      ),
-                    ),
                   ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: (_isSaving || auth.isLoading)
+                      ? null
+                      : () => _signOut(auth, isArabic),
+                  icon: const Icon(Icons.logout_rounded),
+                  label: Text(isArabic ? 'تسجيل خروج' : 'Sign Out'),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.15),
+                    ),
+                    backgroundColor: Colors.white.withValues(alpha: 0.03),
+                    foregroundColor: AppColors.textSecondary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
                 ),
               ),
             ],
@@ -382,12 +445,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-class _ProfileInfoTile extends StatelessWidget {
-  const _ProfileInfoTile({
+class _GlassPanel extends StatelessWidget {
+  const _GlassPanel({
+    required this.child,
+    this.padding = const EdgeInsets.all(16),
+  });
+
+  final Widget child;
+  final EdgeInsets padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      width: double.infinity,
+      padding: padding,
+      decoration: BoxDecoration(
+        color: isDark
+            ? AppColors.glass.withValues(alpha: 0.32)
+            : Colors.white.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.1)
+              : Colors.black.withValues(alpha: 0.05),
+        ),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.26 : 0.08),
+            blurRadius: 26,
+            spreadRadius: -12,
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+class _ProfileMetaRow extends StatelessWidget {
+  const _ProfileMetaRow({
+    required this.icon,
     required this.label,
     required this.value,
   });
 
+  final IconData icon;
   final String label;
   final String value;
 
@@ -396,24 +501,43 @@ class _ProfileInfoTile extends StatelessWidget {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(12),
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.05)
+            : Colors.black.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: <Widget>[
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall,
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: AppColors.accent.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 18, color: AppColors.accentLight),
           ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w600,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(label, style: Theme.of(context).textTheme.bodySmall),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: value == 'غير متوفر' || value == 'Not available'
+                        ? AppColors.textMuted
+                        : null,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

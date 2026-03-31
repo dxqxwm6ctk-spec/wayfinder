@@ -49,41 +49,70 @@ class _MainShellScreenState extends State<MainShellScreen> {
           child: _pages[navigation.currentIndex],
         ),
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF040507) : const Color(0xFFFFFFFF),
-          border: Border(
-            top: BorderSide(
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: isDark
+                ? AppColors.glass.withValues(alpha: 0.4)
+                : Colors.white.withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
               color: isDark
-                  ? Colors.white.withValues(alpha: 0.06)
+                  ? Colors.white.withValues(alpha: 0.12)
                   : Colors.black.withValues(alpha: 0.08),
             ),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.14),
+                blurRadius: 24,
+                spreadRadius: -10,
+                offset: const Offset(0, 14),
+              ),
+            ],
           ),
-        ),
-        child: BottomNavigationBar(
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          currentIndex: navigation.currentIndex,
-          selectedItemColor: AppColors.accentLight,
-          unselectedItemColor: Colors.white.withValues(alpha: 0.38),
-          selectedLabelStyle: Theme.of(context).textTheme.labelMedium,
-          unselectedLabelStyle: Theme.of(context).textTheme.labelMedium,
-          onTap: navigation.setIndex,
-          items: <BottomNavigationBarItem>[
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.accessibility_new),
-              label: strings.requestTab,
+          child: NavigationBarTheme(
+            data: NavigationBarThemeData(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              indicatorColor: isDark
+                  ? AppColors.accent.withValues(alpha: 0.24)
+                  : AppColors.accent.withValues(alpha: 0.14),
+              labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>(
+                (Set<WidgetState> states) {
+                  final bool selected = states.contains(WidgetState.selected);
+                  return Theme.of(context).textTheme.labelMedium!.copyWith(
+                    color: selected
+                        ? (isDark ? AppColors.accentLight : AppColors.accent)
+                        : (isDark ? AppColors.textMuted : const Color(0xFF6D7B94)),
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                  );
+                },
+              ),
             ),
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.directions_bus),
-              label: strings.statusTab,
+            child: NavigationBar(
+              selectedIndex: navigation.currentIndex,
+              onDestinationSelected: navigation.setIndex,
+              destinations: <NavigationDestination>[
+                NavigationDestination(
+                  icon: const Icon(Icons.route_outlined),
+                  selectedIcon: const Icon(Icons.route),
+                  label: strings.requestTab,
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.directions_bus_filled_outlined),
+                  selectedIcon: const Icon(Icons.directions_bus_filled),
+                  label: strings.statusTab,
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.person_outline_rounded),
+                  selectedIcon: const Icon(Icons.person_rounded),
+                  label: strings.profileTab,
+                ),
+              ],
             ),
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.person),
-              label: strings.profileTab,
-            ),
-          ],
+          ),
         ),
       ),
     );

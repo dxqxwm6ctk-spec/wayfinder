@@ -100,25 +100,98 @@ class TransitProvider extends ChangeNotifier {
 
   RequestExecutionSummary executeImmediateRequest() {
     final Zone? zone = _zoneByPickupArea(_selectedPickupArea);
+
+    if (zone != null) {
+      _zones = _zones
+          .map(
+            (Zone item) => item.id == zone.id
+                ? item.copyWith(studentsWaiting: item.studentsWaiting + 1)
+                : item,
+          )
+          .toList();
+      _waitingStudents += 1;
+      notifyListeners();
+
+      final Zone updatedZone = _zones.firstWhere((Zone item) => item.id == zone.id);
+      return RequestExecutionSummary(
+        area: _selectedPickupArea,
+        studentsWaiting: updatedZone.studentsWaiting,
+        busNumber: updatedZone.assignedBus,
+      );
+    }
+
+    _waitingStudents += 1;
+    notifyListeners();
+
     return RequestExecutionSummary(
       area: _selectedPickupArea,
-      studentsWaiting: zone?.studentsWaiting ?? _waitingStudents,
-      busNumber: zone?.assignedBus,
+      studentsWaiting: _waitingStudents,
+      busNumber: null,
     );
   }
 
+  RequestExecutionSummary? cancelRequestForArea(String area) {
+    final Zone? zone = _zoneByPickupArea(area);
+
+    if (zone != null) {
+      if (zone.studentsWaiting <= 0) {
+        return null;
+      }
+
+      _zones = _zones
+          .map(
+            (Zone item) => item.id == zone.id
+                ? item.copyWith(studentsWaiting: item.studentsWaiting - 1)
+                : item,
+          )
+          .toList();
+
+      if (_waitingStudents > 0) {
+        _waitingStudents -= 1;
+      }
+      notifyListeners();
+
+      final Zone updatedZone = _zones.firstWhere((Zone item) => item.id == zone.id);
+      return RequestExecutionSummary(
+        area: area,
+        studentsWaiting: updatedZone.studentsWaiting,
+        busNumber: updatedZone.assignedBus,
+      );
+    }
+
+    if (_waitingStudents <= 0) {
+      return null;
+    }
+
+    _waitingStudents -= 1;
+    notifyListeners();
+    return RequestExecutionSummary(
+      area: area,
+      studentsWaiting: _waitingStudents,
+      busNumber: null,
+    );
+  }
+
+  String? assignedBusForArea(String area) {
+    final Zone? zone = _zoneByPickupArea(area);
+    final String? bus = zone?.assignedBus?.trim();
+    if (bus == null || bus.isEmpty) {
+      return null;
+    }
+    return bus;
+  }
+
   Zone? _zoneByPickupArea(String area) {
-    final String normalized = area.toLowerCase();
-    if (normalized.contains('north')) {
-      return _firstWhereOrNull((Zone z) => z.id == 'north');
-    }
-    if (normalized.contains('stem')) {
-      return _firstWhereOrNull((Zone z) => z.id == 'stem');
-    }
-    if (normalized.contains('south')) {
-      return _firstWhereOrNull((Zone z) => z.id == 'south');
-    }
-    return _zones.isEmpty ? null : _zones.first;
+    final String normalizedArea = _normalize(area);
+    return _firstWhereOrNull(
+      (Zone zone) =>
+          _normalize(zone.name) == normalizedArea ||
+          _normalize(zone.id) == normalizedArea,
+    );
+  }
+
+  String _normalize(String input) {
+    return input.trim().toLowerCase();
   }
 
   Zone? _firstWhereOrNull(bool Function(Zone zone) predicate) {
