@@ -23,7 +23,7 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
   String? _lastDepartedPromptKey;
 
   void _maybeNotifyBusAssigned(TransitProvider transit, AppStrings strings) {
-    final String area = transit.selectedPickupArea;
+    final String area = transit.studentCurrentArea;
     final String? bus = transit.assignedBusForArea(area);
 
     if (bus == null) {
@@ -52,7 +52,8 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
   }
 
   void _maybePromptBusDeparted(TransitProvider transit, AppStrings strings) {
-    if (!transit.shouldPromptStudentBoarding || transit.activeRequestArea == null) {
+    if (!transit.shouldPromptStudentBoarding ||
+        transit.activeRequestArea == null) {
       _lastDepartedPromptKey = null;
       return;
     }
@@ -73,9 +74,9 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(strings.busDepartedPrompt)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(strings.busDepartedPrompt)));
     });
   }
 
@@ -85,6 +86,10 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
     final AppSettingsProvider settings = context.watch<AppSettingsProvider>();
     final AppStrings strings = AppStrings(isArabic: settings.isArabic);
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final RequestExecutionSummary? activeSummary = transit.activeRequestSummary;
+    final RequestExecutionSummary? summaryForView =
+        activeSummary ?? _lastSummary;
+
     _maybeNotifyBusAssigned(transit, strings);
     _maybePromptBusDeparted(transit, strings);
 
@@ -128,9 +133,12 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                         children: <Widget>[
                           Text(
                             strings.onDemandTransit,
-                            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                              color: isDark ? AppColors.accentLight : AppColors.accent,
-                            ),
+                            style: Theme.of(context).textTheme.labelLarge
+                                ?.copyWith(
+                                  color: isDark
+                                      ? AppColors.accentLight
+                                      : AppColors.accent,
+                                ),
                           ),
                           const SizedBox(height: 8),
                           Text(
@@ -140,16 +148,18 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                           const SizedBox(height: 8),
                           Text(
                             strings.requestSubtitle,
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                            style: Theme.of(context).textTheme.bodyLarge
+                                ?.copyWith(color: AppColors.textSecondary),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 16),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
                       decoration: BoxDecoration(
                         color: isDark
                             ? AppColors.glass.withValues(alpha: 0.28)
@@ -169,7 +179,9 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                               children: <Widget>[
                                 Text(
                                   strings.immediatePickup,
-                                  style: Theme.of(context).textTheme.headlineMedium,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.headlineMedium,
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
@@ -180,13 +192,15 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                             ),
                           ),
                           Switch.adaptive(
-                            activeThumbColor: isDark ? AppColors.textPrimary : Colors.white,
+                            activeThumbColor: isDark
+                                ? AppColors.textPrimary
+                                : Colors.white,
                             activeTrackColor: isDark
-                              ? AppColors.accentLight
-                              : AppColors.accent.withValues(alpha: 0.46),
+                                ? AppColors.accentLight
+                                : AppColors.accent.withValues(alpha: 0.46),
                             inactiveTrackColor: isDark
-                              ? AppColors.surfaceSoft
-                              : const Color(0xFFD7DFED),
+                                ? AppColors.surfaceSoft
+                                : const Color(0xFFD7DFED),
                             value: transit.immediatePickup,
                             onChanged: (bool value) {
                               transit.toggleImmediatePickup(value);
@@ -211,15 +225,19 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                       Text(
                         strings.pickupArea,
                         style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                              color: (isDark
+                          color:
+                              (isDark
                                       ? AppColors.textPrimary
                                       : const Color(0xFF111827))
                                   .withValues(alpha: 0.72),
-                            ),
+                        ),
                       ),
                       const SizedBox(height: 12),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: isDark
                               ? AppColors.glass.withValues(alpha: 0.34)
@@ -234,22 +252,27 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                         child: DropdownButtonFormField<String>(
                           initialValue: transit.selectedPickupArea,
                           icon: const Icon(Icons.keyboard_arrow_down_rounded),
-                          dropdownColor: isDark ? AppColors.surface : Colors.white,
+                          dropdownColor: isDark
+                              ? AppColors.surface
+                              : Colors.white,
                           borderRadius: BorderRadius.circular(16),
                           style: Theme.of(context).textTheme.headlineMedium,
-                          decoration: const InputDecoration(border: InputBorder.none),
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                          ),
                           items: transit.pickupAreas
                               .map(
                                 (String area) => DropdownMenuItem<String>(
                                   value: area,
                                   child: Text(
                                     area,
-                                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                      color: isDark
-                                          ? AppColors.textPrimary
-                                          : AppColors.lightTextPrimary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                    style: Theme.of(context).textTheme.bodyLarge
+                                        ?.copyWith(
+                                          color: isDark
+                                              ? AppColors.textPrimary
+                                              : AppColors.lightTextPrimary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                   ),
                                 ),
                               )
@@ -262,35 +285,37 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                         ),
                       ),
                       const SizedBox(height: 22),
-                      CustomButton(
-                        label: strings.executeRequest,
-                        icon: Icons.arrow_forward,
-                        onPressed: () {
-                          final RequestExecutionSummary summary =
-                              transit.executeImmediateRequest();
-                          setState(() {
-                            _lastSummary = summary;
-                          });
-                          final String busText = summary.busNumber == null ||
-                                  summary.busNumber!.trim().isEmpty
-                              ? strings.noBusAssigned
-                              : 'BUS #${summary.busNumber}';
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                '${strings.selectedArea}: ${summary.area} | '
-                                '${strings.currentlyWaiting}: ${summary.studentsWaiting} ${strings.students} | '
-                                '${strings.assignedBus}: $busText',
+                      if (!transit.hasActiveStudentRequest)
+                        CustomButton(
+                          label: strings.confirmRequest,
+                          icon: Icons.arrow_forward,
+                          onPressed: () {
+                            final RequestExecutionSummary summary = transit
+                                .executeImmediateRequest();
+                            setState(() {
+                              _lastSummary = summary;
+                            });
+                            final String busText =
+                                summary.busNumber == null ||
+                                    summary.busNumber!.trim().isEmpty
+                                ? strings.noBusAssigned
+                                : 'BUS #${summary.busNumber}';
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  '${strings.selectedArea}: ${summary.area} | '
+                                  '${strings.currentlyWaiting}: ${summary.studentsWaiting} ${strings.students} | '
+                                  '${strings.assignedBus}: $busText',
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
-                      if (_lastSummary != null) ...<Widget>[
+                            );
+                          },
+                        ),
+                      if (summaryForView != null) ...<Widget>[
                         const SizedBox(height: 20),
                         InfoCard(
                           title: strings.selectedArea,
-                          value: _lastSummary!.area,
+                          value: summaryForView.area,
                         ),
                         const SizedBox(height: 12),
                         Row(
@@ -299,17 +324,18 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                               child: InfoCard(
                                 title: strings.currentlyWaiting,
                                 value:
-                                    '${_lastSummary!.studentsWaiting} ${strings.students}',
+                                    '${summaryForView.studentsWaiting} ${strings.students}',
                               ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: InfoCard(
                                 title: strings.assignedBus,
-                                value: _lastSummary!.busNumber == null ||
-                                        _lastSummary!.busNumber!.isEmpty
+                                value:
+                                    summaryForView.busNumber == null ||
+                                        summaryForView.busNumber!.isEmpty
                                     ? strings.noBusAssigned
-                                    : 'BUS #${_lastSummary!.busNumber}',
+                                    : 'BUS #${summaryForView.busNumber}',
                                 indicatorColor: const Color(0xFF253866),
                               ),
                             ),
@@ -322,25 +348,31 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                             icon: const Icon(Icons.cancel_outlined),
                             label: Text(strings.cancelRequest),
                             onPressed: () {
-                              if (_lastSummary == null) {
+                              if (summaryForView == null) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(strings.noActiveRequest)),
+                                  SnackBar(
+                                    content: Text(strings.noActiveRequest),
+                                  ),
                                 );
                                 return;
                               }
 
-                              final RequestExecutionSummary? cancelled =
-                                  transit.cancelRequestForArea(_lastSummary!.area);
+                              final RequestExecutionSummary? cancelled = transit
+                                  .cancelRequestForArea(summaryForView.area);
 
                               if (cancelled == null) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(strings.noActiveRequest)),
+                                  SnackBar(
+                                    content: Text(strings.noActiveRequest),
+                                  ),
                                 );
                                 return;
                               }
 
                               setState(() {
                                 _lastSummary = null;
+                                _lastBusAssignmentNotificationKey = null;
+                                _lastDepartedPromptKey = null;
                               });
 
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -359,13 +391,20 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                           SizedBox(
                             width: double.infinity,
                             child: OutlinedButton.icon(
-                              icon: const Icon(Icons.check_circle_outline_rounded),
+                              icon: const Icon(
+                                Icons.check_circle_outline_rounded,
+                              ),
                               label: Text(strings.iBoarded),
                               onPressed: () {
-                                final bool ok = transit.markCurrentStudentBoarded();
+                                final bool ok = transit
+                                    .markCurrentStudentBoarded();
                                 if (!ok) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(strings.boardingNotAvailable)),
+                                    SnackBar(
+                                      content: Text(
+                                        strings.boardingNotAvailable,
+                                      ),
+                                    ),
                                   );
                                   return;
                                 }
@@ -373,7 +412,9 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                                   _lastSummary = null;
                                 });
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(strings.boardedConfirmed)),
+                                  SnackBar(
+                                    content: Text(strings.boardedConfirmed),
+                                  ),
                                 );
                               },
                             ),

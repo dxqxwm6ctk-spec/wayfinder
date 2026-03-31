@@ -1,5 +1,9 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../core/services/firestore_data_service.dart';
 import '../../domain/entities/zone.dart';
 import '../../domain/usecases/get_transit_dashboard.dart';
 
@@ -19,6 +23,9 @@ class TransitProvider extends ChangeNotifier {
   TransitProvider(this._getTransitDashboard);
 
   final GetTransitDashboard _getTransitDashboard;
+  final FirestoreDataService _firestoreDataService = FirestoreDataService();
+  StreamSubscription<QuerySnapshot>? _zonesSubscription;
+  bool _isRealtimeSyncReady = false;
 
   bool _loading = false;
   bool _hasLoaded = false;
@@ -45,6 +52,7 @@ class TransitProvider extends ChangeNotifier {
     }
     return _fleetStatus;
   }
+
   String get systemStatus => _systemStatus;
   String get campusConnectivity => _campusConnectivity;
   bool get immediatePickup => _immediatePickup;
@@ -56,6 +64,19 @@ class TransitProvider extends ChangeNotifier {
   DateTime? get lastUpdatedAt => _lastUpdatedAt;
   Map<String, int> get boardedStudentsByZone =>
       Map<String, int>.unmodifiable(_boardedStudentsByZone);
+
+  RequestExecutionSummary? get activeRequestSummary {
+    if (!_hasActiveStudentRequest || _activeRequestArea == null) {
+      return null;
+    }
+
+    final Zone? zone = _zoneByPickupArea(_activeRequestArea!);
+    return RequestExecutionSummary(
+      area: _activeRequestArea!,
+      studentsWaiting: zone?.studentsWaiting ?? 0,
+      busNumber: zone?.assignedBus,
+    );
+  }
 
   String get studentCurrentArea {
     if (_hasActiveStudentRequest && _activeRequestArea != null) {
@@ -88,7 +109,9 @@ class TransitProvider extends ChangeNotifier {
 
   int? get estimatedArrivalMinutesForStudentArea {
     final Zone? zone = _zoneByPickupArea(studentCurrentArea);
-    if (zone == null || zone.assignedBus == null || zone.assignedBus!.trim().isEmpty) {
+    if (zone == null ||
+        zone.assignedBus == null ||
+        zone.assignedBus!.trim().isEmpty) {
       return null;
     }
 
@@ -116,13 +139,14 @@ class TransitProvider extends ChangeNotifier {
     _fleetStatus = dashboard.fleetStatus;
     _pickupAreas = dashboard.pickupAreas;
     _selectedPickupArea = dashboard.pickupAreas.isNotEmpty
-      ? dashboard.pickupAreas.first
-      : '';
+        ? dashboard.pickupAreas.first
+        : '';
     _systemStatus = dashboard.systemStatus;
     _campusConnectivity = dashboard.campusConnectivity;
     _zones = dashboard.zones;
     _hasLoaded = true;
     _touchUpdatedAt();
+    await _startRealtimeSync();
 
     _loading = false;
     notifyListeners();
@@ -141,36 +165,53 @@ class TransitProvider extends ChangeNotifier {
   }
 
   void assignBus(String zoneId, String busNumber) {
-    final String normalizedBus = busNumber.toUpperCase().replaceAll('BUS #', '').trim();
+    final String normalizedBus = busNumber
+        .toUpperCase()
+        .replaceAll('BUS #', '')
+        .trim();
     _zones = _zones
-        .map((Zone zone) => zone.id == zoneId
-        ? zone.copyWith(assignedBus: normalizedBus)
-            : zone)
+        .map(
+          (Zone zone) => zone.id == zoneId
+              ? zone.copyWith(assignedBus: normalizedBus)
+              : zone,
+        )
         .toList();
     _departedZoneIds.remove(zoneId);
     _touchUpdatedAt();
     notifyListeners();
+    _syncZoneUpdate(zoneId, <String, dynamic>{
+      'assignedBus': normalizedBus,
+      'departed': false,
+    });
   }
 
   void removeBus(String zoneId) {
     _zones = _zones
-        .map((Zone zone) => zone.id == zoneId
-            ? zone.copyWith(clearAssignedBus: true)
-            : zone)
+        .map(
+          (Zone zone) =>
+              zone.id == zoneId ? zone.copyWith(clearAssignedBus: true) : zone,
+        )
         .toList();
     _departedZoneIds.remove(zoneId);
     _touchUpdatedAt();
     notifyListeners();
+    _syncZoneUpdate(zoneId, <String, dynamic>{
+      'assignedBus': FieldValue.delete(),
+      'departed': false,
+    });
   }
 
   void markBusDeparted(String zoneId) {
     final Zone? zone = _firstWhereOrNull((Zone z) => z.id == zoneId);
-    if (zone == null || zone.assignedBus == null || zone.assignedBus!.trim().isEmpty) {
+    if (zone == null ||
+        zone.assignedBus == null ||
+        zone.assignedBus!.trim().isEmpty) {
       return;
     }
     _departedZoneIds.add(zoneId);
     _touchUpdatedAt();
     notifyListeners();
+    _syncZoneUpdate(zoneId, <String, dynamic>{'departed': true});
   }
 
   bool isBusDeparted(String zoneId) {
@@ -181,14 +222,18 @@ class TransitProvider extends ChangeNotifier {
     final Zone? zone = _zoneByPickupArea(_selectedPickupArea);
 
     if (!_hasActiveStudentRequest && zone != null) {
+      final int nextWaiting = zone.studentsWaiting + 1;
       _zones = _zones
           .map(
             (Zone item) => item.id == zone.id
-                ? item.copyWith(studentsWaiting: item.studentsWaiting + 1)
+                ? item.copyWith(studentsWaiting: nextWaiting)
                 : item,
           )
           .toList();
       _waitingStudents += 1;
+      _syncZoneUpdate(zone.id, <String, dynamic>{
+        'studentsWaiting': nextWaiting,
+      });
     }
 
     _hasActiveStudentRequest = true;
@@ -219,6 +264,10 @@ class TransitProvider extends ChangeNotifier {
                 : item,
           )
           .toList();
+
+      _syncZoneUpdate(zone.id, <String, dynamic>{
+        'studentsWaiting': zone.studentsWaiting - 1,
+      });
 
       if (_waitingStudents > 0) {
         _waitingStudents -= 1;
@@ -276,6 +325,10 @@ class TransitProvider extends ChangeNotifier {
         )
         .toList();
 
+    _syncZoneUpdate(zone.id, <String, dynamic>{
+      'studentsWaiting': zone.studentsWaiting - 1,
+    });
+
     if (_waitingStudents > 0) {
       _waitingStudents -= 1;
     }
@@ -307,6 +360,10 @@ class TransitProvider extends ChangeNotifier {
               : item,
         )
         .toList();
+
+    _syncZoneUpdate(zoneId, <String, dynamic>{
+      'studentsWaiting': zone.studentsWaiting - applied,
+    });
 
     _waitingStudents = (_waitingStudents - applied).clamp(0, _waitingStudents);
 
@@ -360,5 +417,122 @@ class TransitProvider extends ChangeNotifier {
       }
     }
     return null;
+  }
+
+  ZoneSeverity _severityFromString(String? value) {
+    switch ((value ?? '').toLowerCase()) {
+      case 'critical':
+        return ZoneSeverity.critical;
+      case 'moderate':
+        return ZoneSeverity.moderate;
+      default:
+        return ZoneSeverity.stable;
+    }
+  }
+
+  String _severityToString(ZoneSeverity severity) {
+    switch (severity) {
+      case ZoneSeverity.critical:
+        return 'critical';
+      case ZoneSeverity.moderate:
+        return 'moderate';
+      case ZoneSeverity.stable:
+        return 'stable';
+    }
+  }
+
+  Future<void> _startRealtimeSync() async {
+    if (_isRealtimeSyncReady) {
+      return;
+    }
+
+    try {
+      _firestoreDataService.initialize();
+      await _ensureZonesSeeded();
+
+      _zonesSubscription = _firestoreDataService.getZonesStream().listen((
+        QuerySnapshot snapshot,
+      ) {
+        if (snapshot.docs.isEmpty) {
+          return;
+        }
+
+        final List<Zone> incoming = snapshot.docs.map((
+          QueryDocumentSnapshot doc,
+        ) {
+          final Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          return Zone(
+            id: doc.id,
+            name: (data['name'] as String?) ?? doc.id,
+            studentsWaiting: (data['studentsWaiting'] as int?) ?? 0,
+            severity: _severityFromString(data['severity'] as String?),
+            assignedBus:
+                (data['assignedBus'] as String?)?.trim().isEmpty == true
+                ? null
+                : data['assignedBus'] as String?,
+          );
+        }).toList();
+
+        if (incoming.isEmpty) {
+          return;
+        }
+
+        final String previousArea = _selectedPickupArea;
+        _zones = incoming;
+        _pickupAreas = incoming.map((Zone zone) => zone.name).toList();
+        _waitingStudents = incoming.fold<int>(
+          0,
+          (int sum, Zone zone) => sum + zone.studentsWaiting,
+        );
+
+        if (_pickupAreas.isNotEmpty) {
+          final bool stillExists = _pickupAreas.any(
+            (String area) => _normalize(area) == _normalize(previousArea),
+          );
+          _selectedPickupArea = stillExists ? previousArea : _pickupAreas.first;
+        }
+
+        _touchUpdatedAt();
+        notifyListeners();
+      });
+
+      _isRealtimeSyncReady = true;
+    } catch (e) {
+      debugPrint('Realtime sync unavailable: $e');
+    }
+  }
+
+  Future<void> _ensureZonesSeeded() async {
+    final List<Map<String, dynamic>> existing = await _firestoreDataService
+        .getZones();
+    if (existing.isNotEmpty) {
+      return;
+    }
+
+    for (final Zone zone in _zones) {
+      await _firestoreDataService.updateZone(zone.id, <String, dynamic>{
+        'name': zone.name,
+        'studentsWaiting': zone.studentsWaiting,
+        'severity': _severityToString(zone.severity),
+        'assignedBus': zone.assignedBus,
+        'departed': false,
+      });
+    }
+  }
+
+  void _syncZoneUpdate(String zoneId, Map<String, dynamic> data) {
+    Future<void>.microtask(() async {
+      try {
+        await _firestoreDataService.updateZone(zoneId, data);
+      } catch (e) {
+        debugPrint('Zone sync failed for $zoneId: $e');
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _zonesSubscription?.cancel();
+    super.dispose();
   }
 }

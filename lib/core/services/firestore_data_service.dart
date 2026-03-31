@@ -2,7 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Firestore database service for transit data
 class FirestoreDataService {
-  static final FirestoreDataService _instance = FirestoreDataService._internal();
+  static final FirestoreDataService _instance =
+      FirestoreDataService._internal();
 
   late final FirebaseFirestore _firestore;
 
@@ -34,7 +35,10 @@ class FirestoreDataService {
       ...?additionalData,
     };
 
-    await _firestore.collection('users').doc(uid).set(data, SetOptions(merge: true));
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .set(data, SetOptions(merge: true));
   }
 
   Future<DocumentSnapshot> getUserProfile(String uid) {
@@ -70,10 +74,10 @@ class FirestoreDataService {
 
   /// Update zone
   Future<void> updateZone(String zoneId, Map<String, dynamic> data) async {
-    await _firestore.collection('zones').doc(zoneId).update({
+    await _firestore.collection('zones').doc(zoneId).set({
       ...data,
       'updatedAt': FieldValue.serverTimestamp(),
-    });
+    }, SetOptions(merge: true));
   }
 
   // ==================== BUSES ====================
@@ -147,7 +151,10 @@ class FirestoreDataService {
   }
 
   /// Update ride request status
-  Future<void> updateRideRequestStatus(String requestId, String newStatus) async {
+  Future<void> updateRideRequestStatus(
+    String requestId,
+    String newStatus,
+  ) async {
     await _firestore.collection('rideRequests').doc(requestId).update({
       'status': newStatus,
       'updatedAt': FieldValue.serverTimestamp(),
