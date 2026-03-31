@@ -9,14 +9,76 @@ import '../widgets/app_shell_background.dart';
 import '../widgets/header_row.dart';
 import '../widgets/info_card.dart';
 
-class StatusScreen extends StatelessWidget {
+class StatusScreen extends StatefulWidget {
   const StatusScreen({super.key});
+
+  @override
+  State<StatusScreen> createState() => _StatusScreenState();
+}
+
+class _StatusScreenState extends State<StatusScreen> {
+  String? _lastBusAssignedAlertKey;
+
+  void _maybeShowBusAssignedAlert(TransitProvider transit, AppStrings strings) {
+    final String area = transit.studentCurrentArea;
+    final String? bus = transit.busForStudentArea;
+
+    if (bus == null) {
+      if (_lastBusAssignedAlertKey != null &&
+          _lastBusAssignedAlertKey!.startsWith('$area|')) {
+        _lastBusAssignedAlertKey = null;
+      }
+      return;
+    }
+
+    final String key = '$area|$bus';
+    if (_lastBusAssignedAlertKey == key) {
+      return;
+    }
+    _lastBusAssignedAlertKey = key;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${strings.busAssignedAlert}: $area (BUS #$bus)'),
+        ),
+      );
+    });
+  }
+
+  String _lastUpdatedText(AppStrings strings, DateTime? updatedAt) {
+    if (updatedAt == null) {
+      return strings.etaUnavailable;
+    }
+    final int minutes = DateTime.now().difference(updatedAt).inMinutes;
+    if (minutes <= 0) {
+      return strings.justNow;
+    }
+    return strings.minutesAgo(minutes);
+  }
 
   @override
   Widget build(BuildContext context) {
     final TransitProvider transit = context.watch<TransitProvider>();
     final AppSettingsProvider settings = context.watch<AppSettingsProvider>();
     final AppStrings strings = AppStrings(isArabic: settings.isArabic);
+
+    _maybeShowBusAssignedAlert(transit, strings);
+
+    final String area = transit.studentCurrentArea;
+    final String? bus = transit.busForStudentArea;
+    final int? eta = transit.estimatedArrivalMinutesForStudentArea;
+    final String rideStatus = transit.hasActiveStudentRequest
+        ? strings.activeRide
+        : strings.noActiveRide;
+    final String areaWithBus = bus != null
+        ? '$area • BUS #$bus'
+        : '$area • ${strings.noBusAssignedToArea}';
+    final String etaText = eta != null ? strings.etaMinutes(eta) : strings.etaUnavailable;
+    final String lastUpdatedText = _lastUpdatedText(strings, transit.lastUpdatedAt);
 
     return Scaffold(
       body: AppShellBackground(
@@ -58,6 +120,36 @@ class StatusScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  InfoCard(
+                    title: strings.yourRideStatus,
+                    value: rideStatus,
+                    indicatorColor: transit.hasActiveStudentRequest
+                        ? AppColors.stable
+                        : const Color(0xFF4B5B78),
+                  ),
+                  const SizedBox(height: 14),
+                  InfoCard(
+                    title: strings.yourCurrentArea,
+                    value: areaWithBus,
+                    indicatorColor: bus != null
+                        ? AppColors.accentLight
+                        : const Color(0xFF4B5B78),
+                  ),
+                  const SizedBox(height: 14),
+                  InfoCard(
+                    title: strings.estimatedArrival,
+                    value: etaText,
+                    indicatorColor: eta != null
+                        ? AppColors.accent
+                        : const Color(0xFF4B5B78),
+                  ),
+                  const SizedBox(height: 14),
+                  InfoCard(
+                    title: strings.lastUpdated,
+                    value: lastUpdatedText,
+                    indicatorColor: const Color(0xFF4B5B78),
+                  ),
+                  const SizedBox(height: 14),
                   InfoCard(
                     title: strings.activeStatus,
                     value: strings.localizeSystemStatus(transit.systemStatus),

@@ -30,6 +30,11 @@ class TransitProvider extends ChangeNotifier {
   List<String> _pickupAreas = <String>[];
   String _selectedPickupArea = '';
   List<Zone> _zones = <Zone>[];
+  final Set<String> _departedZoneIds = <String>{};
+  final Map<String, int> _boardedStudentsByZone = <String, int>{};
+  bool _hasActiveStudentRequest = false;
+  String? _activeRequestArea;
+  DateTime? _lastUpdatedAt;
 
   bool get loading => _loading;
   int get waitingStudents => _waitingStudents;
@@ -46,6 +51,57 @@ class TransitProvider extends ChangeNotifier {
   List<String> get pickupAreas => _pickupAreas;
   String get selectedPickupArea => _selectedPickupArea;
   List<Zone> get zones => _zones;
+  bool get hasActiveStudentRequest => _hasActiveStudentRequest;
+  String? get activeRequestArea => _activeRequestArea;
+  DateTime? get lastUpdatedAt => _lastUpdatedAt;
+  Map<String, int> get boardedStudentsByZone =>
+      Map<String, int>.unmodifiable(_boardedStudentsByZone);
+
+  String get studentCurrentArea {
+    if (_hasActiveStudentRequest && _activeRequestArea != null) {
+      return _activeRequestArea!;
+    }
+    return _selectedPickupArea;
+  }
+
+  String? get busForStudentArea {
+    final Zone? zone = _zoneByPickupArea(studentCurrentArea);
+    final String? bus = zone?.assignedBus?.trim();
+    if (bus == null || bus.isEmpty) {
+      return null;
+    }
+    return bus;
+  }
+
+  bool get shouldPromptStudentBoarding {
+    if (!_hasActiveStudentRequest || _activeRequestArea == null) {
+      return false;
+    }
+    final Zone? zone = _zoneByPickupArea(_activeRequestArea!);
+    if (zone == null) {
+      return false;
+    }
+    return isBusDeparted(zone.id) &&
+        zone.assignedBus != null &&
+        zone.assignedBus!.trim().isNotEmpty;
+  }
+
+  int? get estimatedArrivalMinutesForStudentArea {
+    final Zone? zone = _zoneByPickupArea(studentCurrentArea);
+    if (zone == null || zone.assignedBus == null || zone.assignedBus!.trim().isEmpty) {
+      return null;
+    }
+
+    // Simple ETA heuristic based on queue load for the zone.
+    final int eta = 4 + ((zone.studentsWaiting / 3).ceil() * 2);
+    if (eta < 4) {
+      return 4;
+    }
+    if (eta > 30) {
+      return 30;
+    }
+    return eta;
+  }
 
   Future<void> load({bool force = false}) async {
     if (_hasLoaded && !force) {
@@ -59,11 +115,14 @@ class TransitProvider extends ChangeNotifier {
     _waitingStudents = dashboard.waitingStudents;
     _fleetStatus = dashboard.fleetStatus;
     _pickupAreas = dashboard.pickupAreas;
-    _selectedPickupArea = dashboard.pickupAreas.first;
+    _selectedPickupArea = dashboard.pickupAreas.isNotEmpty
+      ? dashboard.pickupAreas.first
+      : '';
     _systemStatus = dashboard.systemStatus;
     _campusConnectivity = dashboard.campusConnectivity;
     _zones = dashboard.zones;
     _hasLoaded = true;
+    _touchUpdatedAt();
 
     _loading = false;
     notifyListeners();
@@ -71,11 +130,13 @@ class TransitProvider extends ChangeNotifier {
 
   void toggleImmediatePickup(bool value) {
     _immediatePickup = value;
+    _touchUpdatedAt();
     notifyListeners();
   }
 
   void selectPickupArea(String value) {
     _selectedPickupArea = value;
+    _touchUpdatedAt();
     notifyListeners();
   }
 
@@ -86,6 +147,8 @@ class TransitProvider extends ChangeNotifier {
         ? zone.copyWith(assignedBus: normalizedBus)
             : zone)
         .toList();
+    _departedZoneIds.remove(zoneId);
+    _touchUpdatedAt();
     notifyListeners();
   }
 
@@ -95,13 +158,29 @@ class TransitProvider extends ChangeNotifier {
             ? zone.copyWith(clearAssignedBus: true)
             : zone)
         .toList();
+    _departedZoneIds.remove(zoneId);
+    _touchUpdatedAt();
     notifyListeners();
+  }
+
+  void markBusDeparted(String zoneId) {
+    final Zone? zone = _firstWhereOrNull((Zone z) => z.id == zoneId);
+    if (zone == null || zone.assignedBus == null || zone.assignedBus!.trim().isEmpty) {
+      return;
+    }
+    _departedZoneIds.add(zoneId);
+    _touchUpdatedAt();
+    notifyListeners();
+  }
+
+  bool isBusDeparted(String zoneId) {
+    return _departedZoneIds.contains(zoneId);
   }
 
   RequestExecutionSummary executeImmediateRequest() {
     final Zone? zone = _zoneByPickupArea(_selectedPickupArea);
 
-    if (zone != null) {
+    if (!_hasActiveStudentRequest && zone != null) {
       _zones = _zones
           .map(
             (Zone item) => item.id == zone.id
@@ -110,23 +189,18 @@ class TransitProvider extends ChangeNotifier {
           )
           .toList();
       _waitingStudents += 1;
-      notifyListeners();
-
-      final Zone updatedZone = _zones.firstWhere((Zone item) => item.id == zone.id);
-      return RequestExecutionSummary(
-        area: _selectedPickupArea,
-        studentsWaiting: updatedZone.studentsWaiting,
-        busNumber: updatedZone.assignedBus,
-      );
     }
 
-    _waitingStudents += 1;
+    _hasActiveStudentRequest = true;
+    _activeRequestArea = _selectedPickupArea;
+    _touchUpdatedAt();
     notifyListeners();
 
+    final Zone? updatedZone = _zoneByPickupArea(_selectedPickupArea);
     return RequestExecutionSummary(
       area: _selectedPickupArea,
-      studentsWaiting: _waitingStudents,
-      busNumber: null,
+      studentsWaiting: updatedZone?.studentsWaiting ?? _waitingStudents,
+      busNumber: updatedZone?.assignedBus,
     );
   }
 
@@ -149,13 +223,20 @@ class TransitProvider extends ChangeNotifier {
       if (_waitingStudents > 0) {
         _waitingStudents -= 1;
       }
+
+      if (_hasActiveStudentRequest && _activeRequestArea == area) {
+        _hasActiveStudentRequest = false;
+        _activeRequestArea = null;
+      }
+
+      _touchUpdatedAt();
       notifyListeners();
 
-      final Zone updatedZone = _zones.firstWhere((Zone item) => item.id == zone.id);
+      final Zone? updatedZone = _zoneByPickupArea(area);
       return RequestExecutionSummary(
         area: area,
-        studentsWaiting: updatedZone.studentsWaiting,
-        busNumber: updatedZone.assignedBus,
+        studentsWaiting: updatedZone?.studentsWaiting ?? 0,
+        busNumber: updatedZone?.assignedBus,
       );
     }
 
@@ -164,12 +245,86 @@ class TransitProvider extends ChangeNotifier {
     }
 
     _waitingStudents -= 1;
+    if (_hasActiveStudentRequest && _activeRequestArea == area) {
+      _hasActiveStudentRequest = false;
+      _activeRequestArea = null;
+    }
+    _touchUpdatedAt();
     notifyListeners();
     return RequestExecutionSummary(
       area: area,
       studentsWaiting: _waitingStudents,
       busNumber: null,
     );
+  }
+
+  bool markCurrentStudentBoarded() {
+    if (!_hasActiveStudentRequest || _activeRequestArea == null) {
+      return false;
+    }
+
+    final Zone? zone = _zoneByPickupArea(_activeRequestArea!);
+    if (zone == null || !isBusDeparted(zone.id) || zone.studentsWaiting <= 0) {
+      return false;
+    }
+
+    _zones = _zones
+        .map(
+          (Zone item) => item.id == zone.id
+              ? item.copyWith(studentsWaiting: item.studentsWaiting - 1)
+              : item,
+        )
+        .toList();
+
+    if (_waitingStudents > 0) {
+      _waitingStudents -= 1;
+    }
+
+    _boardedStudentsByZone[zone.id] =
+        (_boardedStudentsByZone[zone.id] ?? 0) + 1;
+
+    _hasActiveStudentRequest = false;
+    _activeRequestArea = null;
+    _touchUpdatedAt();
+    notifyListeners();
+    return true;
+  }
+
+  int leaderMarkStudentsBoarded(String zoneId, int count) {
+    final Zone? zone = _firstWhereOrNull((Zone z) => z.id == zoneId);
+    if (zone == null || zone.studentsWaiting <= 0 || count <= 0) {
+      return 0;
+    }
+
+    final int applied = count > zone.studentsWaiting
+        ? zone.studentsWaiting
+        : count;
+
+    _zones = _zones
+        .map(
+          (Zone item) => item.id == zoneId
+              ? item.copyWith(studentsWaiting: item.studentsWaiting - applied)
+              : item,
+        )
+        .toList();
+
+    _waitingStudents = (_waitingStudents - applied).clamp(0, _waitingStudents);
+
+    _boardedStudentsByZone[zoneId] =
+        (_boardedStudentsByZone[zoneId] ?? 0) + applied;
+
+    _touchUpdatedAt();
+    notifyListeners();
+    return applied;
+  }
+
+  int boardedCountForZone(String zoneId) {
+    return _boardedStudentsByZone[zoneId] ?? 0;
+  }
+
+  int waitingCountForZone(String zoneId) {
+    final Zone? zone = _firstWhereOrNull((Zone z) => z.id == zoneId);
+    return zone?.studentsWaiting ?? 0;
   }
 
   String? assignedBusForArea(String area) {
@@ -192,6 +347,10 @@ class TransitProvider extends ChangeNotifier {
 
   String _normalize(String input) {
     return input.trim().toLowerCase();
+  }
+
+  void _touchUpdatedAt() {
+    _lastUpdatedAt = DateTime.now();
   }
 
   Zone? _firstWhereOrNull(bool Function(Zone zone) predicate) {

@@ -20,6 +20,7 @@ class RequestRideScreen extends StatefulWidget {
 class _RequestRideScreenState extends State<RequestRideScreen> {
   RequestExecutionSummary? _lastSummary;
   String? _lastBusAssignmentNotificationKey;
+  String? _lastDepartedPromptKey;
 
   void _maybeNotifyBusAssigned(TransitProvider transit, AppStrings strings) {
     final String area = transit.selectedPickupArea;
@@ -39,14 +40,41 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
     }
 
     _lastBusAssignmentNotificationKey = key;
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(strings.busAssignedToYourArea(area, bus)),
-        ),
+        SnackBar(content: Text(strings.busAssignedToYourArea(area, bus))),
+      );
+    });
+  }
+
+  void _maybePromptBusDeparted(TransitProvider transit, AppStrings strings) {
+    if (!transit.shouldPromptStudentBoarding || transit.activeRequestArea == null) {
+      _lastDepartedPromptKey = null;
+      return;
+    }
+
+    final String area = transit.activeRequestArea!;
+    final String? bus = transit.assignedBusForArea(area);
+    if (bus == null) {
+      return;
+    }
+
+    final String key = '$area|$bus|departed';
+    if (_lastDepartedPromptKey == key) {
+      return;
+    }
+    _lastDepartedPromptKey = key;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(strings.busDepartedPrompt)),
       );
     });
   }
@@ -57,8 +85,8 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
     final AppSettingsProvider settings = context.watch<AppSettingsProvider>();
     final AppStrings strings = AppStrings(isArabic: settings.isArabic);
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
-
     _maybeNotifyBusAssigned(transit, strings);
+    _maybePromptBusDeparted(transit, strings);
 
     return Scaffold(
       body: AppShellBackground(
@@ -326,6 +354,31 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                             },
                           ),
                         ),
+                        if (transit.shouldPromptStudentBoarding) ...<Widget>[
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.check_circle_outline_rounded),
+                              label: Text(strings.iBoarded),
+                              onPressed: () {
+                                final bool ok = transit.markCurrentStudentBoarded();
+                                if (!ok) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(strings.boardingNotAvailable)),
+                                  );
+                                  return;
+                                }
+                                setState(() {
+                                  _lastSummary = null;
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(strings.boardedConfirmed)),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
                       ],
                     ],
                     const SizedBox(height: 20),

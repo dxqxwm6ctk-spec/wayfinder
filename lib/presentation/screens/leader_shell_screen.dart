@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 
 import '../localization/app_strings.dart';
 import '../providers/app_settings_provider.dart';
+import '../providers/auth_provider.dart';
 import '../providers/transit_provider.dart';
 import 'fleet_management_screen.dart';
+import 'leader_login_screen.dart';
 
 class LeaderShellScreen extends StatefulWidget {
   const LeaderShellScreen({super.key});
@@ -14,6 +16,26 @@ class LeaderShellScreen extends StatefulWidget {
 }
 
 class _LeaderShellScreenState extends State<LeaderShellScreen> {
+  Future<void> _logoutLeader() async {
+    final AuthProvider auth = context.read<AuthProvider>();
+    final AppSettingsProvider settings = context.read<AppSettingsProvider>();
+    final AppStrings strings = AppStrings(isArabic: settings.isArabic);
+
+    await auth.logoutLeader();
+    if (!mounted) {
+      return;
+    }
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => const LeaderLoginScreen()),
+      (Route<dynamic> route) => false,
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(strings.leaderSignedOut)),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -28,14 +50,17 @@ class _LeaderShellScreenState extends State<LeaderShellScreen> {
     final AppStrings strings = AppStrings(isArabic: settings.isArabic);
 
     return Scaffold(
-      body: const FleetManagementScreen(),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.of(context).popUntil((Route<dynamic> route) => route.isFirst);
-        },
-        label: Text(strings.back),
-        icon: const Icon(Icons.logout_rounded),
+      appBar: AppBar(
+        actions: <Widget>[
+          TextButton.icon(
+            onPressed: _logoutLeader,
+            icon: const Icon(Icons.logout_rounded),
+            label: Text(strings.leaderSignOut),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
+      body: const FleetManagementScreen(),
     );
   }
 }

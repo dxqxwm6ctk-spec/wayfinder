@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../core/config/app_env.dart';
 import '../../core/services/firebase_service.dart';
 import '../../core/services/microsoft_auth_service.dart';
 import '../../core/config/email_domain_policy.dart';
@@ -466,6 +467,12 @@ class UnifiedAuthProvider extends ChangeNotifier {
           rethrow;
         }
 
+        if (AppEnv.microsoftClientId.trim().isEmpty) {
+          throw Exception(
+            'invalid-cert-hash: Android certificate hash is not registered in Firebase for com.example.wayfinder.',
+          );
+        }
+
         // Fallback for Android cert-hash mismatch: use AppAuth then Firebase credential.
         final MicrosoftAuthResult? microsoftResult = await _microsoftAuthService
             .signInWithMicrosoft()
@@ -703,6 +710,10 @@ class UnifiedAuthProvider extends ChangeNotifier {
       return 'Microsoft sign-in is limited to Isra University accounts only. Allowed domains: $domains';
     }
 
+    if (raw.contains('invalid-cert-hash') || raw.contains('invalid_cert_hash')) {
+      return 'Android certificate hash is not registered in Firebase for com.example.wayfinder. Add your current app SHA-1/SHA-256 in Firebase Console > Project settings > Android app, then download a fresh google-services.json and rebuild the app.';
+    }
+
     if (raw.contains('Microsoft Entra is not configured')) {
       return 'Microsoft sign-in is not configured yet. Missing MICROSOFT_CLIENT_ID. Add it with --dart-define=MICROSOFT_CLIENT_ID=...';
     }
@@ -721,10 +732,6 @@ class UnifiedAuthProvider extends ChangeNotifier {
 
     if (raw.toUpperCase().contains('CONFIGURATION_NOT_FOUND')) {
       return 'Firebase Android config is incomplete. Enable Email/Password in Firebase Authentication and verify the Android app package name is com.example.wayfinder.';
-    }
-
-    if (raw.contains('invalid-cert-hash') || raw.contains('invalid_cert_hash')) {
-      return 'Android certificate hash is not registered in Firebase for com.example.wayfinder. Add your current app SHA-1/SHA-256 in Firebase Console > Project settings > Android app, then download a fresh google-services.json and rebuild the app.';
     }
 
     return raw;

@@ -1,12 +1,18 @@
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase;
 
 import '../../core/config/email_domain_policy.dart';
+import '../../core/services/firebase_service.dart';
 import '../../domain/usecases/login_user.dart';
 
 class AuthProvider extends ChangeNotifier {
-  AuthProvider(this._loginUser);
+  AuthProvider(
+    this._loginUser, {
+    FirebaseService? firebaseService,
+  }) : _firebaseService = firebaseService ?? FirebaseService();
 
   final LoginUser _loginUser;
+  final FirebaseService _firebaseService;
 
   bool _isLoading = false;
   bool _isLeaderLoading = false;
@@ -42,14 +48,36 @@ class AuthProvider extends ChangeNotifier {
     _isLeaderLoading = true;
     notifyListeners();
 
-    await Future<void>.delayed(const Duration(milliseconds: 800));
-    final bool success =
-        email.trim().toLowerCase() == 'leader@iu.edu.co' &&
-            password == 'leader1234';
+    bool success = false;
+    try {
+      await _firebaseService.initialize();
+      final firebase.UserCredential? credential = await _firebaseService.signInWithEmail(
+        email.trim().toLowerCase(),
+        password,
+      );
+      success = credential?.user != null;
+    } catch (_) {
+      success = false;
+    }
 
     _isLeaderAuthenticated = success;
     _isLeaderLoading = false;
     notifyListeners();
     return success;
+  }
+
+  Future<void> logoutLeader() async {
+    _isLeaderLoading = true;
+    notifyListeners();
+
+    try {
+      await _firebaseService.signOut();
+    } catch (_) {
+      // Keep logout resilient even if provider cleanup throws.
+    }
+
+    _isLeaderAuthenticated = false;
+    _isLeaderLoading = false;
+    notifyListeners();
   }
 }
