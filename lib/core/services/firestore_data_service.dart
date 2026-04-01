@@ -63,6 +63,11 @@ class FirestoreDataService {
     return _firestore.collection('zones').snapshots();
   }
 
+  /// Pull zones snapshot on demand.
+  Future<QuerySnapshot<Map<String, dynamic>>> getZonesSnapshot() {
+    return _firestore.collection('zones').get();
+  }
+
   /// Create new zone
   Future<String> createZone(Map<String, dynamic> zonData) async {
     final docRef = await _firestore.collection('zones').add({
@@ -78,6 +83,31 @@ class FirestoreDataService {
       ...data,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+  }
+
+  /// Update all zone docs with a matching name (fallback when ids differ across clients).
+  Future<void> updateZonesByName(String zoneName, Map<String, dynamic> data) async {
+    final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
+        .collection('zones')
+        .where('name', isEqualTo: zoneName)
+        .get();
+
+    if (snapshot.docs.isEmpty) {
+      return;
+    }
+
+    final WriteBatch batch = _firestore.batch();
+    for (final QueryDocumentSnapshot<Map<String, dynamic>> doc in snapshot.docs) {
+      batch.set(
+        doc.reference,
+        <String, dynamic>{
+          ...data,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+    }
+    await batch.commit();
   }
 
   // ==================== BUSES ====================

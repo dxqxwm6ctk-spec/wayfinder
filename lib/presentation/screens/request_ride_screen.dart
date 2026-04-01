@@ -45,9 +45,26 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(strings.busAssignedToYourArea(area, bus))),
+      final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+      messenger.clearMaterialBanners();
+      messenger.showMaterialBanner(
+        MaterialBanner(
+          content: Text(strings.busAssignedToYourArea(area, bus)),
+          actions: <Widget>[
+            TextButton(
+              onPressed: messenger.clearMaterialBanners,
+              child: Text(strings.back),
+            ),
+          ],
+        ),
       );
+
+      Future<void>.delayed(const Duration(seconds: 3), () {
+        if (!mounted) {
+          return;
+        }
+        messenger.clearMaterialBanners();
+      });
     });
   }
 

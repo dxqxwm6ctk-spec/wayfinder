@@ -41,11 +41,26 @@ class _StatusScreenState extends State<StatusScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+      final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+      messenger.clearMaterialBanners();
+      messenger.showMaterialBanner(
+        MaterialBanner(
           content: Text('${strings.busAssignedAlert}: $area (BUS #$bus)'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: messenger.clearMaterialBanners,
+              child: Text(strings.back),
+            ),
+          ],
         ),
       );
+
+      Future<void>.delayed(const Duration(seconds: 3), () {
+        if (!mounted) {
+          return;
+        }
+        messenger.clearMaterialBanners();
+      });
     });
   }
 

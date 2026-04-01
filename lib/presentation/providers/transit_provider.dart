@@ -25,6 +25,7 @@ class TransitProvider extends ChangeNotifier {
   final GetTransitDashboard _getTransitDashboard;
   final FirestoreDataService _firestoreDataService = FirestoreDataService();
   StreamSubscription<QuerySnapshot>? _zonesSubscription;
+  Timer? _zonesPollingTimer;
   bool _isRealtimeSyncReady = false;
 
   bool _loading = false;
@@ -449,6 +450,7 @@ class TransitProvider extends ChangeNotifier {
 
   Future<void> _startRealtimeSync() async {
     if (_isRealtimeSyncReady) {
+      _startPollingFallback();
       return;
     }
 
@@ -479,33 +481,72 @@ class TransitProvider extends ChangeNotifier {
           );
         }).toList();
 
-        if (incoming.isEmpty) {
-          return;
-        }
-
-        final String previousArea = _selectedPickupArea;
-        _zones = incoming;
-        _pickupAreas = incoming.map((Zone zone) => zone.name).toList();
-        _waitingStudents = incoming.fold<int>(
-          0,
-          (int sum, Zone zone) => sum + zone.studentsWaiting,
-        );
-
-        if (_pickupAreas.isNotEmpty) {
-          final bool stillExists = _pickupAreas.any(
-            (String area) => _normalize(area) == _normalize(previousArea),
-          );
-          _selectedPickupArea = stillExists ? previousArea : _pickupAreas.first;
-        }
-
-        _touchUpdatedAt();
-        notifyListeners();
+        _applyIncomingZones(incoming);
+      }, onError: (Object error) {
+        debugPrint('Zones stream error: $error');
       });
 
       _isRealtimeSyncReady = true;
+      _startPollingFallback();
     } catch (e) {
       debugPrint('Realtime sync unavailable: $e');
+      _startPollingFallback();
     }
+  }
+
+  void _applyIncomingZones(List<Zone> incoming) {
+    if (incoming.isEmpty) {
+      return;
+    }
+
+    final String previousArea = _selectedPickupArea;
+    _zones = incoming;
+    _pickupAreas = incoming.map((Zone zone) => zone.name).toList();
+    _waitingStudents = incoming.fold<int>(
+      0,
+      (int sum, Zone zone) => sum + zone.studentsWaiting,
+    );
+
+    if (_pickupAreas.isNotEmpty) {
+      final bool stillExists = _pickupAreas.any(
+        (String area) => _normalize(area) == _normalize(previousArea),
+      );
+      _selectedPickupArea = stillExists ? previousArea : _pickupAreas.first;
+    }
+
+    _touchUpdatedAt();
+    notifyListeners();
+  }
+
+  void _startPollingFallback() {
+    _zonesPollingTimer ??= Timer.periodic(const Duration(seconds: 2), (
+      Timer timer,
+    ) {
+      Future<void>.microtask(() async {
+        try {
+          final QuerySnapshot<Map<String, dynamic>> snapshot =
+              await _firestoreDataService.getZonesSnapshot();
+          final List<Zone> incoming = snapshot.docs.map((
+            QueryDocumentSnapshot<Map<String, dynamic>> doc,
+          ) {
+            final Map<String, dynamic> data = doc.data();
+            return Zone(
+              id: doc.id,
+              name: (data['name'] as String?) ?? doc.id,
+              studentsWaiting: (data['studentsWaiting'] as int?) ?? 0,
+              severity: _severityFromString(data['severity'] as String?),
+              assignedBus:
+                  (data['assignedBus'] as String?)?.trim().isEmpty == true
+                  ? null
+                  : data['assignedBus'] as String?,
+            );
+          }).toList();
+          _applyIncomingZones(incoming);
+        } catch (e) {
+          debugPrint('Zones polling fallback failed: $e');
+        }
+      });
+    });
   }
 
   Future<void> _ensureZonesSeeded() async {
@@ -534,6 +575,12 @@ class TransitProvider extends ChangeNotifier {
     Future<void>.microtask(() async {
       try {
         await _firestoreDataService.updateZone(zoneId, data);
+
+        final Zone? zone = _firstWhereOrNull((Zone z) => z.id == zoneId);
+        final String? zoneName = zone?.name.trim();
+        if (zoneName != null && zoneName.isNotEmpty) {
+          await _firestoreDataService.updateZonesByName(zoneName, data);
+        }
       } catch (e) {
         debugPrint('Zone sync failed for $zoneId: $e');
       }
@@ -543,6 +590,7 @@ class TransitProvider extends ChangeNotifier {
   @override
   void dispose() {
     _zonesSubscription?.cancel();
+    _zonesPollingTimer?.cancel();
     super.dispose();
   }
 }
