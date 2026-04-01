@@ -1,10 +1,8 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/services/firestore_data_service.dart';
 import '../../domain/entities/zone.dart';
@@ -25,17 +23,12 @@ class RequestExecutionSummary {
 class TransitProvider extends ChangeNotifier {
   TransitProvider(this._getTransitDashboard);
 
-  static const String _assignedBusesCacheKey =
-      'transit.assigned_buses_by_zone';
-  static const String _activeRequestAreaCacheKey =
-      'transit.active_request_area';
   static const int _moderateThreshold = 10;
   static const int _criticalThreshold = 20;
   static const Duration _departedAutoRemoveDelay = Duration(minutes: 1);
 
   final GetTransitDashboard _getTransitDashboard;
   final FirestoreDataService _firestoreDataService = FirestoreDataService();
-  SharedPreferences? _preferences;
   StreamSubscription<QuerySnapshot>? _zonesSubscription;
   Timer? _zonesPollingTimer;
   final Map<String, Timer> _departedAutoRemoveTimers = <String, Timer>{};
@@ -165,7 +158,6 @@ class TransitProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _preferences ??= await SharedPreferences.getInstance();
       await _migrateLegacyActiveRequestCacheIfNeeded();
 
       final TransitDashboardData dashboard = await _getTransitDashboard();
@@ -178,9 +170,8 @@ class TransitProvider extends ChangeNotifier {
       _systemStatus = dashboard.systemStatus;
       _campusConnectivity = dashboard.campusConnectivity;
       _zones = dashboard.zones;
-      _restoreAssignedBusesFromCache();
-      _restoreActiveRequestFromCache();
       _recomputeZoneSeverityAndSort();
+      await _restoreActiveRequestFromRemote();
       _hasLoaded = true;
       _touchUpdatedAt();
 
@@ -487,37 +478,61 @@ class TransitProvider extends ChangeNotifier {
   }
 
   RequestExecutionSummary executeImmediateRequest() {
-    final Zone? zone = _zoneByPickupArea(_selectedPickupArea);
+    String effectiveArea = _selectedPickupArea;
+    Zone? zone = _zoneByPickupArea(effectiveArea);
 
-    if (!_hasActiveStudentRequest && zone != null) {
-      final int nextWaiting = zone.studentsWaiting + 1;
+    // Recover from transient UI state by falling back to the first available area.
+    if (zone == null && _pickupAreas.isNotEmpty) {
+      effectiveArea = _pickupAreas.first;
+      _selectedPickupArea = effectiveArea;
+      zone = _zoneByPickupArea(effectiveArea);
+    }
+
+    // Final recovery: if areas are out of sync with zones, use the first zone directly.
+    if (zone == null && _zones.isNotEmpty) {
+      zone = _zones.first;
+      effectiveArea = zone.name;
+      _selectedPickupArea = effectiveArea;
+    }
+
+    final bool hasValidActiveForArea =
+        _hasActiveStudentRequest &&
+        _activeRequestArea != null &&
+        _normalize(_activeRequestArea!) == _normalize(effectiveArea) &&
+        zone != null &&
+        zone.studentsWaiting > 0;
+
+    // Allow re-confirming when the previous active request became stale (e.g. leader cleared it).
+    if (zone != null && !hasValidActiveForArea) {
+      final Zone targetZone = zone;
+      final int nextWaiting = targetZone.studentsWaiting + 1;
       _zones = _zones
           .map(
-            (Zone item) => item.id == zone.id
+            (Zone item) => item.id == targetZone.id
                 ? item.copyWith(studentsWaiting: nextWaiting)
                 : item,
           )
           .toList();
       _waitingStudents += 1;
-      _syncZoneUpdate(zone.id, <String, dynamic>{
+      _syncZoneUpdate(targetZone.id, <String, dynamic>{
         'studentsWaiting': nextWaiting,
       });
     }
 
     _hasActiveStudentRequest = true;
-    _activeRequestArea = _selectedPickupArea;
+    _activeRequestArea = effectiveArea;
     if (zone != null) {
       _lastHandledClearedAtByZone[zone.id] =
           _requestsClearedAtByZone[zone.id] ?? 0;
     }
     _recomputeZoneSeverityAndSort();
     _touchUpdatedAt();
-    _persistActiveRequestToCache();
+    _syncActiveRequestToRemote();
     notifyListeners();
 
-    final Zone? updatedZone = _zoneByPickupArea(_selectedPickupArea);
+    final Zone? updatedZone = _zoneByPickupArea(effectiveArea);
     return RequestExecutionSummary(
-      area: _selectedPickupArea,
+      area: effectiveArea,
       studentsWaiting: updatedZone?.studentsWaiting ?? _waitingStudents,
       busNumber: updatedZone?.assignedBus,
     );
@@ -531,7 +546,7 @@ class TransitProvider extends ChangeNotifier {
         if (_hasActiveStudentRequest && _activeRequestArea == area) {
           _hasActiveStudentRequest = false;
           _activeRequestArea = null;
-          _persistActiveRequestToCache();
+          _syncActiveRequestToRemote();
           _touchUpdatedAt();
           notifyListeners();
         }
@@ -557,7 +572,7 @@ class TransitProvider extends ChangeNotifier {
       if (_hasActiveStudentRequest && _activeRequestArea == area) {
         _hasActiveStudentRequest = false;
         _activeRequestArea = null;
-        _persistActiveRequestToCache();
+        _syncActiveRequestToRemote();
       }
 
       _recomputeZoneSeverityAndSort();
@@ -580,7 +595,7 @@ class TransitProvider extends ChangeNotifier {
     if (_hasActiveStudentRequest && _activeRequestArea == area) {
       _hasActiveStudentRequest = false;
       _activeRequestArea = null;
-      _persistActiveRequestToCache();
+      _syncActiveRequestToRemote();
     }
     _touchUpdatedAt();
     notifyListeners();
@@ -624,7 +639,7 @@ class TransitProvider extends ChangeNotifier {
     _activeRequestArea = null;
     _recomputeZoneSeverityAndSort();
     _touchUpdatedAt();
-    _persistActiveRequestToCache();
+    _syncActiveRequestToRemote();
     notifyListeners();
     return true;
   }
@@ -638,6 +653,7 @@ class TransitProvider extends ChangeNotifier {
     final int applied = count > zone.studentsWaiting
         ? zone.studentsWaiting
         : count;
+    final int nextWaiting = zone.studentsWaiting - applied;
 
     _zones = _zones
         .map(
@@ -647,9 +663,15 @@ class TransitProvider extends ChangeNotifier {
         )
         .toList();
 
-    _syncZoneUpdate(zoneId, <String, dynamic>{
-      'studentsWaiting': zone.studentsWaiting - applied,
-    });
+    final Map<String, dynamic> syncData = <String, dynamic>{
+      'studentsWaiting': nextWaiting,
+    };
+    if (nextWaiting <= 0) {
+      final int clearedAt = DateTime.now().millisecondsSinceEpoch;
+      _requestsClearedAtByZone[zoneId] = clearedAt;
+      syncData['requestsClearedAt'] = clearedAt;
+    }
+    _syncZoneUpdate(zoneId, syncData);
 
     _waitingStudents = (_waitingStudents - applied).clamp(0, _waitingStudents);
 
@@ -1236,7 +1258,7 @@ class TransitProvider extends ChangeNotifier {
     _lastHandledClearedAtByZone[zone.id] = clearedAt;
     _hasActiveStudentRequest = false;
     _activeRequestArea = null;
-    _persistActiveRequestToCache();
+    _syncActiveRequestToRemote();
   }
 
   Map<String, dynamic> _buildZoneBusSyncData(String zoneId) {
@@ -1262,80 +1284,6 @@ class TransitProvider extends ChangeNotifier {
           ? FieldValue.delete()
           : departedAtByBus,
     };
-  }
-
-  void _restoreAssignedBusesFromCache() {
-    final String? raw = _preferences?.getString(_assignedBusesCacheKey);
-    if (raw == null || raw.isEmpty) {
-      return;
-    }
-
-    try {
-      final Map<String, dynamic> decoded =
-          jsonDecode(raw) as Map<String, dynamic>;
-      final Map<String, List<String>> restored = <String, List<String>>{};
-
-      decoded.forEach((String zoneId, dynamic value) {
-        if (value is! List) {
-          return;
-        }
-
-        final List<String> buses = value
-            .map((dynamic item) => item.toString().trim())
-            .where((String bus) => bus.isNotEmpty)
-            .map((String bus) => bus.toUpperCase().replaceAll('BUS #', '').trim())
-            .where((String bus) => bus.isNotEmpty)
-            .toList();
-
-        if (buses.isNotEmpty) {
-          restored[zoneId] = buses;
-        }
-      });
-
-      if (restored.isEmpty) {
-        return;
-      }
-
-      _assignedBusesByZone
-        ..clear()
-        ..addAll(restored);
-
-      _zones = _zones
-          .map((Zone zone) {
-            final List<String>? buses = restored[zone.id];
-            if (buses == null || buses.isEmpty) {
-              return zone;
-            }
-            return zone.copyWith(assignedBus: buses.first);
-          })
-          .toList();
-    } catch (_) {
-      // Ignore corrupt cache and continue with remote state.
-    }
-  }
-
-  void _restoreActiveRequestFromCache() {
-    final String? activeRequestCacheKey = _activeRequestCacheKeyForCurrentUser();
-    if (activeRequestCacheKey == null || activeRequestCacheKey.isEmpty) {
-      return;
-    }
-    final String cachedArea =
-        (_preferences?.getString(activeRequestCacheKey) ?? '').trim();
-    if (cachedArea.isEmpty) {
-      return;
-    }
-
-    final Zone? zone = _zoneByPickupArea(cachedArea);
-    if (zone == null) {
-      _hasActiveStudentRequest = false;
-      _activeRequestArea = null;
-      _persistActiveRequestToCache();
-      return;
-    }
-
-    _hasActiveStudentRequest = true;
-    _activeRequestArea = zone.name;
-    _selectedPickupArea = zone.name;
   }
 
   void _ensureActiveRequestWaitingInvariant({required bool syncToRemote}) {
@@ -1379,71 +1327,72 @@ class TransitProvider extends ChangeNotifier {
   }
 
   void _persistAssignedBusesToCache() {
-    Future<void>.microtask(() async {
-      try {
-        _preferences ??= await SharedPreferences.getInstance();
-        await _preferences?.setString(
-          _assignedBusesCacheKey,
-          jsonEncode(_assignedBusesByZone),
-        );
-      } catch (_) {
-        // Best-effort local persistence only.
-      }
-    });
-  }
-
-  void _persistActiveRequestToCache() {
-    unawaited(_persistActiveRequestToCacheNow());
-  }
-
-  Future<void> _persistActiveRequestToCacheNow() async {
-    try {
-      _preferences ??= await SharedPreferences.getInstance();
-      final String? activeRequestCacheKey = _activeRequestCacheKeyForCurrentUser();
-      if (activeRequestCacheKey == null || activeRequestCacheKey.isEmpty) {
-        return;
-      }
-      final String area = (_activeRequestArea ?? '').trim();
-      if (_hasActiveStudentRequest && area.isNotEmpty) {
-        await _preferences?.setString(activeRequestCacheKey, area);
-      } else {
-        await _preferences?.remove(activeRequestCacheKey);
-      }
-    } catch (_) {
-      // Best-effort local persistence only.
-    }
-  }
-
-  String? _activeRequestCacheKeyForCurrentUser() {
-    final User? user = FirebaseAuth.instance.currentUser;
-    final String uid = (user?.uid ?? '').trim();
-    if (uid.isEmpty) {
-      return null;
-    }
-    return '$_activeRequestAreaCacheKey.$uid';
+    // Disabled intentionally: source of truth is Firestore.
   }
 
   Future<void> _migrateLegacyActiveRequestCacheIfNeeded() async {
+    // Disabled intentionally: source of truth is Firestore.
+  }
+
+  Future<void> _restoreActiveRequestFromRemote() async {
+    final User? user = FirebaseAuth.instance.currentUser;
+    final String uid = (user?.uid ?? '').trim();
+    if (uid.isEmpty) {
+      _hasActiveStudentRequest = false;
+      _activeRequestArea = null;
+      return;
+    }
+
     try {
-      final String? activeRequestCacheKey = _activeRequestCacheKeyForCurrentUser();
-      if (activeRequestCacheKey == null || activeRequestCacheKey.isEmpty) {
-        return;
-      }
+      _firestoreDataService.initialize();
+      final DocumentSnapshot profile = await _firestoreDataService.getUserProfile(uid);
+      final Map<String, dynamic> data =
+          profile.data() as Map<String, dynamic>? ?? <String, dynamic>{};
+      final String remoteArea = (data['activeRequestArea'] as String? ?? '').trim();
+      final bool hasRemoteRequest = (data['hasActiveRequest'] as bool?) ?? false;
 
-      final String legacyArea =
-          (_preferences?.getString(_activeRequestAreaCacheKey) ?? '').trim();
-      if (legacyArea.isEmpty) {
-        return;
+      if (hasRemoteRequest && remoteArea.isNotEmpty) {
+        _hasActiveStudentRequest = true;
+        _activeRequestArea = remoteArea;
+        final Zone? zone = _zoneByPickupArea(remoteArea);
+        if (zone != null) {
+          _selectedPickupArea = zone.name;
+        }
+      } else {
+        _hasActiveStudentRequest = false;
+        _activeRequestArea = null;
       }
+    } catch (e) {
+      debugPrint('Active request remote restore failed: $e');
+    }
+  }
 
-      final String scopedArea =
-          (_preferences?.getString(activeRequestCacheKey) ?? '').trim();
-      if (scopedArea.isEmpty) {
-        await _preferences?.setString(activeRequestCacheKey, legacyArea);
-      }
-      await _preferences?.remove(_activeRequestAreaCacheKey);
-    } catch (_) {
-      // Ignore migration failures and keep app flow running.
+  void _syncActiveRequestToRemote() {
+    unawaited(_syncActiveRequestToRemoteNow());
+  }
+
+  Future<void> _syncActiveRequestToRemoteNow() async {
+    final User? user = FirebaseAuth.instance.currentUser;
+    final String uid = (user?.uid ?? '').trim();
+    final String email = (user?.email ?? '').trim();
+    if (uid.isEmpty) {
+      return;
+    }
+
+    try {
+      _firestoreDataService.initialize();
+      await _firestoreDataService.saveUserProfile(
+        uid: uid,
+        email: email,
+        additionalData: <String, dynamic>{
+          'hasActiveRequest': _hasActiveStudentRequest,
+          'activeRequestArea': _hasActiveStudentRequest
+              ? (_activeRequestArea ?? '').trim()
+              : '',
+        },
+      );
+    } catch (e) {
+      debugPrint('Active request remote sync failed: $e');
     }
   }
 
@@ -1475,12 +1424,24 @@ class TransitProvider extends ChangeNotifier {
 
   Future<void> _syncZoneUpdateNow(String zoneId, Map<String, dynamic> data) async {
     try {
-      await _firestoreDataService.updateZone(zoneId, data);
+      _firestoreDataService.initialize();
 
       final Zone? zone = _firstWhereOrNull((Zone z) => z.id == zoneId);
+      final Map<String, dynamic> payload = <String, dynamic>{
+        if (zone != null) ...<String, dynamic>{
+          'name': zone.name,
+          'studentsWaiting': zone.studentsWaiting,
+          'severity': _severityToString(zone.severity),
+          'assignedBus': zone.assignedBus,
+        },
+        ...data,
+      };
+
+      await _firestoreDataService.updateZone(zoneId, payload);
+
       final String? zoneName = zone?.name.trim();
       if (zoneName != null && zoneName.isNotEmpty) {
-        await _firestoreDataService.updateZonesByName(zoneName, data);
+        await _firestoreDataService.updateZonesByName(zoneName, payload);
       }
     } catch (e) {
       debugPrint('Zone sync failed for $zoneId: $e');

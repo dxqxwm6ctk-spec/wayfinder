@@ -71,6 +71,9 @@ class AppStrings {
   String get priorityDispatch =>
       isArabic ? 'أولوية الإرسال' : 'PRIORITY DISPATCH';
   String get pickupArea => isArabic ? 'اختر منطقة الانطلاق' : 'SELECT PICK-UP AREA';
+  String get requestAreaRequired => isArabic
+      ? 'اختر منطقة الانطلاق أولاً.'
+      : 'Please select a pick-up area first.';
   String get currentlyWaiting =>
       isArabic ? 'المنتظرون حاليًا' : 'Currently Waiting';
   String get students => isArabic ? 'طالب' : 'Students';

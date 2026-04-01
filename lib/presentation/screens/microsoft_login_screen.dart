@@ -229,7 +229,7 @@ class _MicrosoftLoginScreenState extends State<MicrosoftLoginScreen> {
           if (context.mounted) {
             Navigator.of(context).pushNamedAndRemoveUntil('/main', (route) => false);
           }
-        } else {
+        } else if (result.message != 'cancelled') {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(result.error ?? 'Microsoft sign in failed')),
           );

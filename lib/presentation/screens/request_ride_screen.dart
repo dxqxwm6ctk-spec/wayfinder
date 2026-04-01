@@ -156,6 +156,8 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
       transit.hasActiveStudentRequest && activeSummary != null;
     final bool hasValidActiveRequest =
       hasLiveActiveRequest && activeSummary.studentsWaiting > 0;
+    final bool canConfirmRequest = !hasValidActiveRequest &&
+        transit.pickupAreas.isNotEmpty;
     final RequestExecutionSummary? summaryForView =
       hasValidActiveRequest ? activeSummary : null;
 
@@ -295,6 +297,15 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                           label: strings.confirmRequest,
                           icon: Icons.arrow_forward,
                           onPressed: () {
+                            if (!canConfirmRequest) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(strings.requestAreaRequired),
+                                ),
+                              );
+                              return;
+                            }
+
                             final RequestExecutionSummary summary = transit
                                 .executeImmediateRequest();
                             setState(() {

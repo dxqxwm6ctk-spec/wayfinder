@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:http/http.dart' as http;
 
 /// Microsoft Entra / Azure AD authentication service
 class MicrosoftAuthService {
@@ -38,6 +39,7 @@ class MicrosoftAuthService {
             'openid',
             'profile',
             'email',
+            'User.Read',
             'offline_access', // For refresh tokens
             'https://graph.microsoft.com/.default',
           ],
@@ -63,6 +65,7 @@ class MicrosoftAuthService {
         email: email,
         name: (decodedToken['name'] as String?) ?? '',
         uid: (decodedToken['oid'] as String?) ?? '', // Object ID from Azure
+        photoUrl: (decodedToken['picture'] as String?)?.trim(),
         scopes: result.scopes,
         accessTokenExpirationDateTime: result.accessTokenExpirationDateTime,
       );
@@ -88,6 +91,7 @@ class MicrosoftAuthService {
             'openid',
             'profile',
             'email',
+            'User.Read',
             'offline_access',
             'https://graph.microsoft.com/.default',
           ],
@@ -97,6 +101,28 @@ class MicrosoftAuthService {
       return result.accessToken;
     } catch (e) {
       debugPrint('Token refresh error: $e');
+      return null;
+    }
+  }
+
+  Future<Uint8List?> fetchProfilePhotoBytes(String accessToken) async {
+    try {
+      final Uri uri = Uri.parse('https://graph.microsoft.com/v1.0/me/photo/' r'$value');
+      final http.Response response = await http.get(
+        uri,
+        headers: <String, String>{
+          'Authorization': 'Bearer $accessToken',
+          'Accept': 'image/*',
+        },
+      );
+
+      if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
+        return response.bodyBytes;
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('Microsoft photo fetch error: $e');
       return null;
     }
   }
@@ -153,6 +179,7 @@ class MicrosoftAuthResult {
   final String email;
   final String name;
   final String uid; // Azure Object ID
+  final String? photoUrl;
   final List<String>? scopes;
   final DateTime? accessTokenExpirationDateTime;
 
@@ -163,6 +190,7 @@ class MicrosoftAuthResult {
     required this.email,
     required this.name,
     required this.uid,
+    this.photoUrl,
     this.scopes,
     this.accessTokenExpirationDateTime,
   });

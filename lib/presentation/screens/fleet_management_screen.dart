@@ -93,6 +93,20 @@ class _FleetManagementScreenState extends State<FleetManagementScreen> {
     super.dispose();
   }
 
+  Future<void> _refreshFleetData() async {
+    await context.read<TransitProvider>().load();
+    if (!mounted) {
+      return;
+    }
+    final bool isArabic = context.read<AppSettingsProvider>().isArabic;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(isArabic ? 'تم تحديث البيانات.' : 'Data refreshed successfully.'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final TransitProvider transit = context.watch<TransitProvider>();
@@ -104,10 +118,13 @@ class _FleetManagementScreenState extends State<FleetManagementScreen> {
       body: AppShellBackground(
         child: transit.loading
             ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
+            : RefreshIndicator(
+                onRefresh: _refreshFleetData,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
                     HeaderRow(title: strings.academicWayfinder),
                     const SizedBox(height: 20),
                     Container(
@@ -187,7 +204,8 @@ class _FleetManagementScreenState extends State<FleetManagementScreen> {
                     ...transit.zones
                         .map((Zone zone) => _zoneCard(context, transit, zone, strings)),
                     const SizedBox(height: 20),
-                  ],
+                    ],
+                  ),
                 ),
               ),
       ),

@@ -6,6 +6,7 @@ class FirestoreDataService {
       FirestoreDataService._internal();
 
   late final FirebaseFirestore _firestore;
+  bool _isInitialized = false;
 
   FirestoreDataService._internal();
 
@@ -14,7 +15,17 @@ class FirestoreDataService {
   }
 
   void initialize() {
+    if (_isInitialized) {
+      return;
+    }
     _firestore = FirebaseFirestore.instance;
+    _isInitialized = true;
+  }
+
+  void _ensureInitialized() {
+    if (!_isInitialized) {
+      initialize();
+    }
   }
 
   // ==================== USERS ====================
@@ -27,6 +38,7 @@ class FirestoreDataService {
     String? role,
     Map<String, dynamic>? additionalData,
   }) async {
+    _ensureInitialized();
     final data = {
       'email': email,
       'name': name,
@@ -42,11 +54,13 @@ class FirestoreDataService {
   }
 
   Future<DocumentSnapshot> getUserProfile(String uid) {
+    _ensureInitialized();
     return _firestore.collection('users').doc(uid).get();
   }
 
   /// Stream of user profile changes
   Stream<DocumentSnapshot> getUserProfileStream(String uid) {
+    _ensureInitialized();
     return _firestore.collection('users').doc(uid).snapshots();
   }
 
@@ -54,22 +68,26 @@ class FirestoreDataService {
 
   /// Get all zones
   Future<List<Map<String, dynamic>>> getZones() async {
+    _ensureInitialized();
     final snapshot = await _firestore.collection('zones').get();
     return snapshot.docs.map((doc) => doc.data()).toList();
   }
 
   /// Stream of zones (real-time updates)
   Stream<QuerySnapshot> getZonesStream() {
+    _ensureInitialized();
     return _firestore.collection('zones').snapshots();
   }
 
   /// Pull zones snapshot on demand.
   Future<QuerySnapshot<Map<String, dynamic>>> getZonesSnapshot() {
+    _ensureInitialized();
     return _firestore.collection('zones').get();
   }
 
   /// Create new zone
   Future<String> createZone(Map<String, dynamic> zonData) async {
+    _ensureInitialized();
     final docRef = await _firestore.collection('zones').add({
       ...zonData,
       'createdAt': FieldValue.serverTimestamp(),
@@ -79,6 +97,7 @@ class FirestoreDataService {
 
   /// Update zone
   Future<void> updateZone(String zoneId, Map<String, dynamic> data) async {
+    _ensureInitialized();
     await _firestore.collection('zones').doc(zoneId).set({
       ...data,
       'updatedAt': FieldValue.serverTimestamp(),
@@ -87,6 +106,7 @@ class FirestoreDataService {
 
   /// Update all zone docs with a matching name (fallback when ids differ across clients).
   Future<void> updateZonesByName(String zoneName, Map<String, dynamic> data) async {
+    _ensureInitialized();
     final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
         .collection('zones')
         .where('name', isEqualTo: zoneName)

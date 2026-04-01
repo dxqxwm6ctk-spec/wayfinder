@@ -66,6 +66,9 @@ class FirebaseService {
       // Core services: required for auth and firestore.
       _auth = FirebaseAuth.instance;
       _firestore = FirebaseFirestore.instance;
+      _firestore!.settings = const Settings(
+        persistenceEnabled: false,
+      );
 
       // Messaging setup is optional; failures here must not break auth.
       try {

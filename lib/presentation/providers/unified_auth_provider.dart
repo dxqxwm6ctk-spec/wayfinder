@@ -50,6 +50,8 @@ class UnifiedAuthProvider extends ChangeNotifier {
   firebase.User? _currentUser;
   String? _currentEmail;
   String? _currentName;
+  String? _currentPhotoUrl;
+  Uint8List? _currentPhotoBytes;
   String? _studentId;
   String? _studentRole;
   String? _studentMajor;
@@ -95,6 +97,8 @@ class UnifiedAuthProvider extends ChangeNotifier {
   firebase.User? get currentUser => _currentUser;
   String? get currentEmail => _currentEmail;
   String? get currentName => _currentName;
+  String? get currentPhotoUrl => _currentPhotoUrl;
+  Uint8List? get currentPhotoBytes => _currentPhotoBytes;
   String? get studentId => _studentId;
   String? get studentRole => _studentRole;
   String? get studentMajor => _studentMajor;
@@ -117,6 +121,7 @@ class UnifiedAuthProvider extends ChangeNotifier {
       if (user != null) {
         _currentEmail = user.email;
         _currentName = user.displayName;
+        _currentPhotoUrl = _extractPhotoUrlFromFirebaseUser(user);
         _lastAuthMethod = AuthMethod.firebase;
         _studentRole = _preferences?.getString(_lastUserRoleKey);
         _loadUserDataFromFirestore(user.uid);
@@ -145,6 +150,15 @@ class UnifiedAuthProvider extends ChangeNotifier {
               'displayName',
             ]) ??
             _currentName;
+        _currentPhotoUrl = _readStringValue(data, <String>[
+              'photoUrl',
+              'photoURL',
+              'avatarUrl',
+              'profileImageUrl',
+            'picture',
+            'imageUrl',
+            ]) ??
+            _currentPhotoUrl;
         _currentEmail = _readStringValue(data, <String>['email']) ?? _currentEmail;
         _studentId = _readStringValue(data, <String>['studentId', 'universityId', 'id']);
         _studentRole = _readStringValue(data, <String>['role']);
@@ -177,6 +191,23 @@ class UnifiedAuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> refreshProfileData() async {
+    final firebase.User? user = _firebaseService.getCurrentUser() ?? _currentUser;
+    if (user == null) {
+      return;
+    }
+
+    _currentUser = user;
+    _currentEmail = user.email;
+    _currentName = user.displayName;
+    _currentPhotoUrl = _extractPhotoUrlFromFirebaseUser(user);
+    _currentPhotoBytes = null;
+    _currentPhotoUrl ??= await _extractPhotoUrlFromIdTokenClaims(user);
+    notifyListeners();
+
+    await _loadUserDataFromFirestore(user.uid);
+  }
+
   String? _readStringValue(Map<String, dynamic> data, List<String> keys) {
     for (final String key in keys) {
       final dynamic value = data[key];
@@ -192,9 +223,60 @@ class UnifiedAuthProvider extends ChangeNotifier {
     return null;
   }
 
+  String? _extractPhotoUrlFromFirebaseUser(firebase.User? user) {
+    if (user == null) {
+      return null;
+    }
+
+    final String? primary = user.photoURL?.trim();
+    if (primary != null && primary.isNotEmpty) {
+      return primary;
+    }
+
+    for (final firebase.UserInfo info in user.providerData) {
+      final String? providerPhoto = info.photoURL?.trim();
+      if (providerPhoto != null && providerPhoto.isNotEmpty) {
+        return providerPhoto;
+      }
+    }
+
+    return null;
+  }
+
+  String? _extractPhotoUrlFromAdditionalUserInfo(firebase.UserCredential credential) {
+    final Map<String, dynamic>? profile = credential.additionalUserInfo?.profile;
+    if (profile == null) {
+      return null;
+    }
+
+    return _readStringValue(profile, <String>[
+      'picture',
+      'photo',
+      'photoUrl',
+      'photoURL',
+      'avatar',
+      'avatarUrl',
+      'image',
+      'imageUrl',
+    ]);
+  }
+
+  String? _extractAccessTokenFromUserCredential(firebase.UserCredential credential) {
+    final firebase.AuthCredential? rawCredential = credential.credential;
+    if (rawCredential is firebase.OAuthCredential) {
+      final String? accessToken = rawCredential.accessToken?.trim();
+      if (accessToken != null && accessToken.isNotEmpty) {
+        return accessToken;
+      }
+    }
+    return null;
+  }
+
   void _clearProfileFields() {
     _currentEmail = null;
     _currentName = null;
+    _currentPhotoUrl = null;
+    _currentPhotoBytes = null;
     _studentId = null;
     _studentRole = null;
     _studentMajor = null;
@@ -395,6 +477,7 @@ class UnifiedAuthProvider extends ChangeNotifier {
 
         _currentUser = _firebaseService.getCurrentUser();
         _currentEmail = _currentUser?.email;
+        _currentPhotoUrl = _extractPhotoUrlFromFirebaseUser(_currentUser);
         _studentRole = 'student';
         await _cacheLastUserRole('student');
         _lastAuthMethod = AuthMethod.firebase;
@@ -478,24 +561,15 @@ class UnifiedAuthProvider extends ChangeNotifier {
     try {
       await _firebaseService.initialize();
       firebase.UserCredential? credential;
+      String? microsoftPhotoUrl;
+      Uint8List? microsoftPhotoBytes;
 
-      try {
-        credential = await _firebaseService
-            .signInWithMicrosoft()
-            .timeout(const Duration(seconds: 60));
-      } catch (e) {
-        final String raw = e.toString().toLowerCase();
-        if (!raw.contains('invalid-cert-hash') && !raw.contains('invalid_cert_hash')) {
-          rethrow;
-        }
+      final bool useDirectMicrosoftFlow =
+          !kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.iOS ||
+              defaultTargetPlatform == TargetPlatform.macOS);
 
-        if (AppEnv.microsoftClientId.trim().isEmpty) {
-          throw Exception(
-            'invalid-cert-hash: Android certificate hash is not registered in Firebase for com.example.wayfinder.',
-          );
-        }
-
-        // Fallback for Android cert-hash mismatch: use AppAuth then Firebase credential.
+      if (useDirectMicrosoftFlow) {
         final MicrosoftAuthResult? microsoftResult = await _microsoftAuthService
             .signInWithMicrosoft()
             .timeout(const Duration(seconds: 60));
@@ -503,6 +577,11 @@ class UnifiedAuthProvider extends ChangeNotifier {
         if (microsoftResult == null || microsoftResult.accessToken.isEmpty) {
           throw Exception('Microsoft authentication cancelled');
         }
+
+        microsoftPhotoUrl = microsoftResult.photoUrl;
+        microsoftPhotoBytes = await _microsoftAuthService
+          .fetchProfilePhotoBytes(microsoftResult.accessToken)
+          .timeout(const Duration(seconds: 8), onTimeout: () => null);
 
         credential = await _firebaseService
             .signInWithMicrosoftTokens(
@@ -512,6 +591,47 @@ class UnifiedAuthProvider extends ChangeNotifier {
             .timeout(const Duration(seconds: 60));
 
         _microsoftRefreshToken = microsoftResult.refreshToken;
+      } else {
+        try {
+          credential = await _firebaseService
+              .signInWithMicrosoft()
+              .timeout(const Duration(seconds: 60));
+        } catch (e) {
+          final String raw = e.toString().toLowerCase();
+          if (!raw.contains('invalid-cert-hash') &&
+              !raw.contains('invalid_cert_hash')) {
+            rethrow;
+          }
+
+          if (AppEnv.microsoftClientId.trim().isEmpty) {
+            throw Exception(
+              'invalid-cert-hash: Android certificate hash is not registered in Firebase for com.example.wayfinder.',
+            );
+          }
+
+          // Fallback for Android cert-hash mismatch: use AppAuth then Firebase credential.
+          final MicrosoftAuthResult? microsoftResult = await _microsoftAuthService
+              .signInWithMicrosoft()
+              .timeout(const Duration(seconds: 60));
+
+          if (microsoftResult == null || microsoftResult.accessToken.isEmpty) {
+            throw Exception('Microsoft authentication cancelled');
+          }
+
+          microsoftPhotoUrl = microsoftResult.photoUrl;
+            microsoftPhotoBytes = await _microsoftAuthService
+              .fetchProfilePhotoBytes(microsoftResult.accessToken)
+              .timeout(const Duration(seconds: 8), onTimeout: () => null);
+
+          credential = await _firebaseService
+              .signInWithMicrosoftTokens(
+                accessToken: microsoftResult.accessToken,
+                idToken: microsoftResult.idToken,
+              )
+              .timeout(const Duration(seconds: 60));
+
+          _microsoftRefreshToken = microsoftResult.refreshToken;
+        }
       }
 
       if (credential?.user == null) {
@@ -526,9 +646,26 @@ class UnifiedAuthProvider extends ChangeNotifier {
         throw Exception('Microsoft email domain not allowed');
       }
 
+        final String? providerProfilePhotoUrl =
+          _extractPhotoUrlFromAdditionalUserInfo(credential);
+        final String? credentialAccessToken =
+          _extractAccessTokenFromUserCredential(credential);
+        if (microsoftPhotoBytes == null && credentialAccessToken != null) {
+        microsoftPhotoBytes = await _microsoftAuthService
+          .fetchProfilePhotoBytes(credentialAccessToken)
+          .timeout(const Duration(seconds: 8), onTimeout: () => null);
+        }
+
       _currentUser = user;
       _currentEmail = email;
       _currentName = user.displayName;
+        _currentPhotoUrl =
+          _extractPhotoUrlFromFirebaseUser(user) ??
+          microsoftPhotoUrl ??
+          providerProfilePhotoUrl;
+      _currentPhotoBytes = microsoftPhotoBytes;
+
+      _currentPhotoUrl ??= await _extractPhotoUrlFromIdTokenClaims(user);
       _studentRole = 'student';
       await _cacheLastUserRole('student');
       _lastAuthMethod = AuthMethod.microsoft;
@@ -544,6 +681,7 @@ class UnifiedAuthProvider extends ChangeNotifier {
               .set({
                 'email': _currentEmail,
                 'name': _currentName,
+                'photoUrl': _currentPhotoUrl,
                 'authMethod': 'microsoft',
                 'role': 'student',
                 'lastLogin': FieldValue.serverTimestamp(),
@@ -567,6 +705,17 @@ class UnifiedAuthProvider extends ChangeNotifier {
         method: AuthMethod.microsoft,
       );
     } catch (e) {
+      if (_isMicrosoftAuthCancellation(e)) {
+        _authError = null;
+        notifyListeners();
+        return AuthResult(
+          success: false,
+          error: null,
+          message: 'cancelled',
+          method: AuthMethod.microsoft,
+        );
+      }
+
       _authError = _mapAuthError(e);
       notifyListeners();
       return AuthResult(
@@ -593,6 +742,8 @@ class UnifiedAuthProvider extends ChangeNotifier {
         _currentUser = credential!.user;
         _currentEmail = _currentUser!.email;
         _currentName = _currentUser!.displayName;
+        _currentPhotoUrl = _extractPhotoUrlFromFirebaseUser(_currentUser);
+        _currentPhotoBytes = null;
         _studentRole = 'student';
         await _cacheLastUserRole('student');
         _lastAuthMethod = AuthMethod.firebase;
@@ -602,6 +753,7 @@ class UnifiedAuthProvider extends ChangeNotifier {
           {
             'email': _currentEmail,
             'name': _currentName,
+            'photoUrl': _currentPhotoUrl,
             'role': 'student',
             'authMethod': 'google',
             'lastLogin': FieldValue.serverTimestamp(),
@@ -635,6 +787,21 @@ class UnifiedAuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<String?> _extractPhotoUrlFromIdTokenClaims(firebase.User user) async {
+    try {
+      final firebase.IdTokenResult tokenResult = await user.getIdTokenResult(true);
+      final dynamic pictureClaim = tokenResult.claims?['picture'];
+      if (pictureClaim == null) {
+        return null;
+      }
+
+      final String normalized = pictureClaim.toString().trim();
+      return normalized.isEmpty ? null : normalized;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Sign out
   Future<void> signOut() async {
     try {
@@ -665,6 +832,7 @@ class UnifiedAuthProvider extends ChangeNotifier {
 
       _currentEmail = email;
       _currentName = email.split('@')[0];
+      _currentPhotoUrl = null;
       _lastAuthMethod = AuthMethod.mock;
 
       notifyListeners();
@@ -762,5 +930,14 @@ class UnifiedAuthProvider extends ChangeNotifier {
     }
 
     return raw;
+  }
+
+  bool _isMicrosoftAuthCancellation(Object error) {
+    final String raw = error.toString().toLowerCase();
+    return raw.contains('web-context-canceled') ||
+        raw.contains('popup-closed-by-user') ||
+        raw.contains('sign-in was canceled') ||
+        raw.contains('authentication cancelled') ||
+        raw.contains('authentication canceled');
   }
 }

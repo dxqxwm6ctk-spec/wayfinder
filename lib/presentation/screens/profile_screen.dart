@@ -160,6 +160,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _refreshProfile(UnifiedAuthProvider auth) async {
+    await auth.refreshProfileData();
+    if (!mounted) {
+      return;
+    }
+    final bool isArabic = context.read<AppSettingsProvider>().isArabic;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(isArabic ? 'تم تحديث الملف الشخصي.' : 'Profile refreshed successfully.'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+    _syncControllers(auth);
+  }
+
   @override
   Widget build(BuildContext context) {
     final AppSettingsProvider settings = context.watch<AppSettingsProvider>();
@@ -170,6 +185,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final String displayName = auth.currentName?.trim().isNotEmpty == true
       ? auth.currentName!.trim()
       : (isArabic ? 'الطالب' : 'Student');
+    final photoBytes = auth.currentPhotoBytes;
+    final String? profilePhotoUrl = _normalizeImageUrl(auth.currentPhotoUrl);
     final String displayEmail = auth.currentEmail?.trim().isNotEmpty == true
       ? auth.currentEmail!.trim()
       : (isArabic ? 'لا يوجد بريد إلكتروني' : 'No email found');
@@ -196,252 +213,306 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       body: AppShellBackground(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.only(bottom: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              HeaderRow(title: strings.appName),
-              const SizedBox(height: 24),
-              Text(
-                strings.profileTitle,
-                style: Theme.of(context).textTheme.headlineLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                strings.profileSubtitle,
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-              const SizedBox(height: 24),
-              _GlassPanel(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Container(
-                          width: 64,
-                          height: 64,
-                          decoration: BoxDecoration(
-                            gradient: AppColors.primaryGradient,
-                            borderRadius: BorderRadius.circular(22),
-                          ),
-                          child: Center(
-                            child: Text(
-                              (displayName.isNotEmpty ? displayName.characters.first : 'S').toUpperCase(),
-                              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(
-                                displayName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.headlineMedium,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                displayEmail,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        if (!_isEditing)
-                          IconButton.filledTonal(
-                            onPressed: (_isSaving || auth.isProfileLoading)
-                                ? null
-                                : () => setState(() => _isEditing = true),
-                            icon: const Icon(Icons.edit_rounded),
-                          )
-                        else
-                          TextButton(
-                            onPressed: (_isSaving || auth.isProfileLoading)
-                                ? null
-                                : () {
-                                    setState(() => _isEditing = false);
-                                    _syncControllers(auth);
-                                  },
-                            child: Text(isArabic ? 'إلغاء' : 'Cancel'),
-                          ),
-                      ],
-                    ),
-                    if (auth.isProfileLoading) ...<Widget>[
-                      const SizedBox(height: 16),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: const LinearProgressIndicator(minHeight: 4),
-                      ),
-                    ],
-                  ],
+        child: RefreshIndicator(
+          onRefresh: () => _refreshProfile(auth),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                HeaderRow(title: strings.appName),
+                const SizedBox(height: 24),
+                Text(
+                  strings.profileTitle,
+                  style: Theme.of(context).textTheme.headlineLarge,
                 ),
-              ),
-              const SizedBox(height: 16),
-              _GlassPanel(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      isArabic ? 'المعلومات الأساسية' : 'Personal Details',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 16),
-                    _ProfileMetaRow(
-                      icon: Icons.badge_outlined,
-                      label: isArabic ? 'الرقم الجامعي' : 'Student ID',
-                      value: displayStudentId,
-                    ),
-                    const SizedBox(height: 12),
-                    _ProfileMetaRow(
-                      icon: Icons.school_outlined,
-                      label: isArabic ? 'التخصص' : 'Major / Faculty',
-                      value: displayMajor,
-                    ),
-                    const SizedBox(height: 12),
-                    _ProfileMetaRow(
-                      icon: Icons.phone_outlined,
-                      label: isArabic ? 'رقم الهاتف' : 'Phone Number',
-                      value: displayPhone,
-                    ),
-                    const SizedBox(height: 12),
-                    _ProfileMetaRow(
-                      icon: Icons.verified_user_outlined,
-                      label: isArabic ? 'الدور' : 'Role',
-                      value: displayRole,
-                    ),
-                  ],
+                const SizedBox(height: 8),
+                Text(
+                  strings.profileSubtitle,
+                  style: Theme.of(context).textTheme.bodyLarge,
                 ),
-              ),
-              const SizedBox(height: 16),
-              _GlassPanel(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      isArabic ? 'تفضيلات الرحلة' : 'Ride Preferences',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      isArabic
-                          ? 'يمكنك تعديل السكن/الانطلاق ورقم الباص فقط.'
-                          : 'Only home pickup and bus number are editable.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: 14),
-                    if (_isEditing) ...<Widget>[
-                      DropdownButtonFormField<String>(
-                        initialValue: _selectedLocation,
-                        decoration: InputDecoration(
-                          labelText: isArabic ? 'السكن/نقطة الانطلاق' : 'Home / Pickup Location',
-                        ),
-                        items: _pickupLocations.map((String location) {
-                          return DropdownMenuItem<String>(
-                            value: location,
-                            child: Text(location),
-                          );
-                        }).toList(),
-                        onChanged: (String? newValue) {
-                          setState(() => _selectedLocation = newValue);
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _busController,
-                        textInputAction: TextInputAction.done,
-                        decoration: InputDecoration(
-                          labelText: isArabic ? 'رقم الباص المعتاد' : 'Usual Bus Number',
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: AppColors.primaryGradient,
-                            borderRadius: BorderRadius.circular(18),
-                            boxShadow: <BoxShadow>[
-                              BoxShadow(
-                                color: AppColors.accent.withValues(alpha: 0.36),
-                                blurRadius: 24,
-                                spreadRadius: -10,
-                                offset: const Offset(0, 14),
-                              ),
-                            ],
-                          ),
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
+                const SizedBox(height: 24),
+                _GlassPanel(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: <Widget>[
+                      Row(
+                        children: <Widget>[
+                          Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              gradient: AppColors.primaryGradient,
+                              borderRadius: BorderRadius.circular(22),
                             ),
-                            onPressed: (_isSaving || auth.isProfileLoading)
-                                ? null
-                                : () => _saveEditableFields(auth, isArabic),
-                            child: _isSaving
-                                ? const SizedBox(
-                                    height: 18,
-                                    width: 18,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                            child: (photoBytes == null && profilePhotoUrl == null)
+                                ? Center(
+                                    child: Text(
+                                      (displayName.isNotEmpty
+                                              ? displayName.characters.first
+                                              : 'S')
+                                          .toUpperCase(),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .headlineMedium
+                                          ?.copyWith(color: Colors.white),
+                                    ),
                                   )
-                                : Text(isArabic ? 'حفظ التغييرات' : 'Save Changes'),
+                                : ClipRRect(
+                                    borderRadius: BorderRadius.circular(22),
+                                    child: photoBytes != null
+                                        ? Image.memory(
+                                            photoBytes,
+                                            fit: BoxFit.cover,
+                                          )
+                                        : Image.network(
+                                            profilePhotoUrl!,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (
+                                              BuildContext context,
+                                              Object error,
+                                              StackTrace? stackTrace,
+                                            ) {
+                                              return Center(
+                                                child: Text(
+                                                  (displayName.isNotEmpty
+                                                          ? displayName.characters.first
+                                                          : 'S')
+                                                      .toUpperCase(),
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .headlineMedium
+                                                      ?.copyWith(color: Colors.white),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                  ),
                           ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  displayName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.headlineMedium,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  displayEmail,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          if (!_isEditing)
+                            IconButton.filledTonal(
+                              onPressed: (_isSaving || auth.isProfileLoading)
+                                  ? null
+                                  : () => setState(() => _isEditing = true),
+                              icon: const Icon(Icons.edit_rounded),
+                            )
+                          else
+                            TextButton(
+                              onPressed: (_isSaving || auth.isProfileLoading)
+                                  ? null
+                                  : () {
+                                      setState(() => _isEditing = false);
+                                      _syncControllers(auth);
+                                    },
+                              child: Text(isArabic ? 'إلغاء' : 'Cancel'),
+                            ),
+                        ],
+                      ),
+                      if (auth.isProfileLoading) ...<Widget>[
+                        const SizedBox(height: 16),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: const LinearProgressIndicator(minHeight: 4),
                         ),
-                      ),
-                    ] else ...<Widget>[
-                      _ProfileMetaRow(
-                        icon: Icons.place_outlined,
-                        label: isArabic ? 'السكن/الانطلاق' : 'Home / Pickup',
-                        value: displayPickup,
-                      ),
-                      const SizedBox(height: 12),
-                      _ProfileMetaRow(
-                        icon: Icons.directions_bus_outlined,
-                        label: isArabic ? 'رقم الباص المعتاد' : 'Usual Bus Number',
-                        value: displayBus,
-                      ),
+                      ],
                     ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: (_isSaving || auth.isLoading)
-                      ? null
-                      : () => _signOut(auth, isArabic),
-                  icon: const Icon(Icons.logout_rounded),
-                  label: Text(isArabic ? 'تسجيل خروج' : 'Sign Out'),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.15),
-                    ),
-                    backgroundColor: Colors.white.withValues(alpha: 0.03),
-                    foregroundColor: AppColors.textSecondary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                _GlassPanel(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        isArabic ? 'المعلومات الأساسية' : 'Personal Details',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 16),
+                      _ProfileMetaRow(
+                        icon: Icons.badge_outlined,
+                        label: isArabic ? 'الرقم الجامعي' : 'Student ID',
+                        value: displayStudentId,
+                      ),
+                      const SizedBox(height: 12),
+                      _ProfileMetaRow(
+                        icon: Icons.school_outlined,
+                        label: isArabic ? 'التخصص' : 'Major / Faculty',
+                        value: displayMajor,
+                      ),
+                      const SizedBox(height: 12),
+                      _ProfileMetaRow(
+                        icon: Icons.phone_outlined,
+                        label: isArabic ? 'رقم الهاتف' : 'Phone Number',
+                        value: displayPhone,
+                      ),
+                      const SizedBox(height: 12),
+                      _ProfileMetaRow(
+                        icon: Icons.verified_user_outlined,
+                        label: isArabic ? 'الدور' : 'Role',
+                        value: displayRole,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _GlassPanel(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        isArabic ? 'تفضيلات الرحلة' : 'Ride Preferences',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        isArabic
+                            ? 'يمكنك تعديل السكن/الانطلاق ورقم الباص فقط.'
+                            : 'Only home pickup and bus number are editable.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(height: 14),
+                      if (_isEditing) ...<Widget>[
+                        DropdownButtonFormField<String>(
+                          initialValue: _selectedLocation,
+                          decoration: InputDecoration(
+                            labelText:
+                                isArabic ? 'السكن/نقطة الانطلاق' : 'Home / Pickup Location',
+                          ),
+                          items: _pickupLocations.map((String location) {
+                            return DropdownMenuItem<String>(
+                              value: location,
+                              child: Text(location),
+                            );
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            setState(() => _selectedLocation = newValue);
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _busController,
+                          textInputAction: TextInputAction.done,
+                          decoration: InputDecoration(
+                            labelText: isArabic ? 'رقم الباص المعتاد' : 'Usual Bus Number',
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: AppColors.primaryGradient,
+                              borderRadius: BorderRadius.circular(18),
+                              boxShadow: <BoxShadow>[
+                                BoxShadow(
+                                  color: AppColors.accent.withValues(alpha: 0.36),
+                                  blurRadius: 24,
+                                  spreadRadius: -10,
+                                  offset: const Offset(0, 14),
+                                ),
+                              ],
+                            ),
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                              ),
+                              onPressed: (_isSaving || auth.isProfileLoading)
+                                  ? null
+                                  : () => _saveEditableFields(auth, isArabic),
+                              child: _isSaving
+                                  ? const SizedBox(
+                                      height: 18,
+                                      width: 18,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : Text(isArabic ? 'حفظ التغييرات' : 'Save Changes'),
+                            ),
+                          ),
+                        ),
+                      ] else ...<Widget>[
+                        _ProfileMetaRow(
+                          icon: Icons.place_outlined,
+                          label: isArabic ? 'السكن/الانطلاق' : 'Home / Pickup',
+                          value: displayPickup,
+                        ),
+                        const SizedBox(height: 12),
+                        _ProfileMetaRow(
+                          icon: Icons.directions_bus_outlined,
+                          label: isArabic ? 'رقم الباص المعتاد' : 'Usual Bus Number',
+                          value: displayBus,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: (_isSaving || auth.isLoading)
+                        ? null
+                        : () => _signOut(auth, isArabic),
+                    icon: const Icon(Icons.logout_rounded),
+                    label: Text(isArabic ? 'تسجيل خروج' : 'Sign Out'),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.15),
+                      ),
+                      backgroundColor: Colors.white.withValues(alpha: 0.03),
+                      foregroundColor: AppColors.textSecondary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
+  }
+
+  String? _normalizeImageUrl(String? rawUrl) {
+    final String? trimmed = rawUrl?.trim();
+    if (trimmed == null || trimmed.isEmpty) {
+      return null;
+    }
+
+    final Uri? uri = Uri.tryParse(trimmed);
+    if (uri == null || !uri.hasScheme || !(uri.scheme == 'http' || uri.scheme == 'https')) {
+      return null;
+    }
+
+    return trimmed;
   }
 }
 
