@@ -6,7 +6,7 @@ import '../providers/app_settings_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/transit_provider.dart';
 import 'fleet_management_screen.dart';
-import 'leader_login_screen.dart';
+import 'role_selection_screen.dart';
 
 class LeaderShellScreen extends StatefulWidget {
   const LeaderShellScreen({super.key});
@@ -27,7 +27,7 @@ class _LeaderShellScreenState extends State<LeaderShellScreen> {
     }
 
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => const LeaderLoginScreen()),
+      MaterialPageRoute<void>(builder: (_) => const RoleSelectionScreen()),
       (Route<dynamic> route) => false,
     );
 

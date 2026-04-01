@@ -21,6 +21,7 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
   RequestExecutionSummary? _lastSummary;
   String? _lastBusAssignmentNotificationKey;
   String? _lastDepartedPromptKey;
+  String? _lastRideCancelledNotificationKey;
 
   void _maybeNotifyBusAssigned(TransitProvider transit, AppStrings strings) {
     final String area = transit.studentCurrentArea;
@@ -97,6 +98,53 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
     });
   }
 
+  void _maybeNotifyRideCancelled(TransitProvider transit, AppStrings strings) {
+    if (transit.hasActiveStudentRequest || transit.activeRequestSummary != null) {
+      if (_lastRideCancelledNotificationKey != null) {
+        _lastRideCancelledNotificationKey = null;
+      }
+      return;
+    }
+
+    // Only show if we had a request before
+    if (_lastSummary == null) {
+      return;
+    }
+
+    final String key = '${_lastSummary!.area}|cancelled';
+    if (_lastRideCancelledNotificationKey == key) {
+      return;
+    }
+
+    _lastRideCancelledNotificationKey = key;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+      messenger.clearMaterialBanners();
+      messenger.showMaterialBanner(
+        MaterialBanner(
+          content: Text(strings.requestCancelledFor(_lastSummary!.area)),
+          actions: <Widget>[
+            TextButton(
+              onPressed: messenger.clearMaterialBanners,
+              child: Text(strings.back),
+            ),
+          ],
+        ),
+      );
+
+      Future<void>.delayed(const Duration(seconds: 3), () {
+        if (!mounted) {
+          return;
+        }
+        messenger.clearMaterialBanners();
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final TransitProvider transit = context.watch<TransitProvider>();
@@ -109,6 +157,7 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
 
     _maybeNotifyBusAssigned(transit, strings);
     _maybePromptBusDeparted(transit, strings);
+    _maybeNotifyRideCancelled(transit, strings);
 
     return Scaffold(
       body: AppShellBackground(
@@ -328,6 +377,30 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                             );
                           },
                         ),
+                      if (summaryForView != null)
+                        CustomButton(
+                          label: strings.cancelRequest,
+                          icon: Icons.cancel_outlined,
+                          onPressed: () {
+                            final RequestExecutionSummary? cancelled = transit
+                                .cancelRequestForArea(summaryForView.area);
+
+                            if (cancelled == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(strings.noActiveRequest),
+                                ),
+                              );
+                              return;
+                            }
+
+                            setState(() {
+                              _lastSummary = null;
+                              _lastBusAssignmentNotificationKey = null;
+                              _lastDepartedPromptKey = null;
+                            });
+                          },
+                        ),
                       if (summaryForView != null) ...<Widget>[
                         const SizedBox(height: 20),
                         InfoCard(
@@ -357,42 +430,6 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                               ),
                             ),
                           ],
-                        ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            icon: const Icon(Icons.cancel_outlined),
-                            label: Text(strings.cancelRequest),
-                            onPressed: () {
-                              final RequestExecutionSummary? cancelled = transit
-                                  .cancelRequestForArea(summaryForView.area);
-
-                              if (cancelled == null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(strings.noActiveRequest),
-                                  ),
-                                );
-                                return;
-                              }
-
-                              setState(() {
-                                _lastSummary = null;
-                                _lastBusAssignmentNotificationKey = null;
-                                _lastDepartedPromptKey = null;
-                              });
-
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    '${strings.requestCancelledFor(cancelled.area)} | '
-                                    '${strings.currentlyWaiting}: ${cancelled.studentsWaiting} ${strings.students}',
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
                         ),
                         if (transit.shouldPromptStudentBoarding) ...<Widget>[
                           const SizedBox(height: 12),
