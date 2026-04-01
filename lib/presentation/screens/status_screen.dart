@@ -86,14 +86,12 @@ class _StatusScreenState extends State<StatusScreen> {
     final String area = transit.studentCurrentArea;
     final String? bus = transit.busForStudentArea;
     final List<String> buses = transit.busesForStudentArea;
-    final int? eta = transit.estimatedArrivalMinutesForStudentArea;
     final String rideStatus = transit.hasActiveStudentRequest
         ? strings.activeRide
         : strings.noActiveRide;
     final String areaWithBus = bus != null
       ? '$area • BUS #$bus${buses.length > 1 ? ' (+${buses.length - 1})' : ''}'
         : '$area • ${strings.noBusAssignedToArea}';
-    final String etaText = eta != null ? strings.etaMinutes(eta) : strings.etaUnavailable;
     final String lastUpdatedText = _lastUpdatedText(strings, transit.lastUpdatedAt);
 
     return Scaffold(
@@ -161,31 +159,9 @@ class _StatusScreenState extends State<StatusScreen> {
                   ],
                   const SizedBox(height: 14),
                   InfoCard(
-                    title: strings.estimatedArrival,
-                    value: etaText,
-                    indicatorColor: eta != null
-                        ? AppColors.accent
-                        : const Color(0xFF4B5B78),
-                  ),
-                  const SizedBox(height: 14),
-                  InfoCard(
                     title: strings.lastUpdated,
                     value: lastUpdatedText,
                     indicatorColor: const Color(0xFF4B5B78),
-                  ),
-                  const SizedBox(height: 14),
-                  InfoCard(
-                    title: strings.activeStatus,
-                    value: strings.localizeSystemStatus(transit.systemStatus),
-                    indicatorColor: AppColors.accentLight,
-                  ),
-                  const SizedBox(height: 12),
-                  InfoCard(
-                    title: strings.campusConnectivity,
-                    value: strings.localizeCampusConnectivity(
-                      transit.campusConnectivity,
-                    ),
-                    indicatorColor: const Color(0xFF30343C),
                   ),
                   const SizedBox(height: 12),
                   InfoCard(

@@ -66,9 +66,10 @@ class _LeaderShellScreenState extends State<LeaderShellScreen> {
           Padding(
             padding: const EdgeInsetsDirectional.only(end: 4),
             child: CircleAvatar(
-              radius: 18,
+              radius: 20,
               backgroundColor: Colors.white.withValues(alpha: 0.16),
-                backgroundImage: avatarImage,
+              backgroundImage: avatarImage,
+              foregroundImage: avatarImage,
               child: (profilePhotoBytes == null && profilePhotoUrl == null)
                   ? Text(
                       displayName.characters.first.toUpperCase(),

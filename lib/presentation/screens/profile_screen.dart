@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -6,7 +8,6 @@ import '../providers/app_settings_provider.dart';
 import '../providers/unified_auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_shell_background.dart';
-import '../widgets/header_row.dart';
 import 'role_selection_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -14,6 +15,12 @@ class ProfileScreen extends StatefulWidget {
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+enum _ProfileMenuAction {
+  support,
+  developers,
+  details,
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
@@ -175,6 +182,173 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _syncControllers(auth);
   }
 
+  void _showSupportDialog(bool isArabic) {
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text(isArabic ? 'الدعم الفني' : 'Technical Support'),
+          content: Text(
+            isArabic
+                ? 'إذا واجهت مشكلة في المزامنة أو رقم الباص، راجع مشرف النظام أو فريق الدعم الفني.'
+                : 'If you face a sync or bus-number issue, contact the system administrator or technical support team.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(isArabic ? 'إغلاق' : 'Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDevelopersDialog(bool isArabic) {
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text(isArabic ? 'مطورو التطبيق' : 'App Developers'),
+          content: Text(
+            isArabic
+                ? 'تم بناء Wayfinder بواسطة فريق Wayfinder لتجربة النقل الجامعي.'
+                : 'Wayfinder was built by the Wayfinder team for campus transit operations.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(isArabic ? 'إغلاق' : 'Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showPreferredDetailsDialog(UnifiedAuthProvider auth, bool isArabic) {
+    final String displayName = auth.currentName?.trim().isNotEmpty == true
+        ? auth.currentName!.trim()
+        : (isArabic ? 'الطالب' : 'Student');
+    final String displayEmail = auth.currentEmail?.trim().isNotEmpty == true
+        ? auth.currentEmail!.trim()
+        : (isArabic ? 'لا يوجد بريد إلكتروني' : 'No email found');
+    final String displayPickup = auth.defaultPickupArea?.trim().isNotEmpty == true
+        ? auth.defaultPickupArea!.trim()
+        : (isArabic ? 'غير متوفر' : 'Not available');
+    final String displayStudentId = auth.studentId?.trim().isNotEmpty == true
+        ? auth.studentId!.trim()
+        : (isArabic ? 'غير متوفر' : 'Not available');
+    final String displayRole = auth.studentRole?.trim().isNotEmpty == true
+        ? auth.studentRole!.trim()
+        : (isArabic ? 'طالب' : 'Student');
+    final String displayMajor = auth.studentMajor?.trim().isNotEmpty == true
+        ? auth.studentMajor!.trim()
+        : (isArabic ? 'غير متوفر' : 'Not available');
+    final String displayPhone = auth.studentPhone?.trim().isNotEmpty == true
+        ? auth.studentPhone!.trim()
+        : (isArabic ? 'غير متوفر' : 'Not available');
+    final String displayBus = auth.usualBusNumber?.trim().isNotEmpty == true
+        ? auth.usualBusNumber!.trim()
+        : (isArabic ? 'غير متوفر' : 'Not available');
+
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text(isArabic ? 'التفاصيل المفضلة' : 'Preferred Details'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text('${isArabic ? 'الاسم' : 'Name'}: $displayName'),
+              const SizedBox(height: 6),
+              Text('${isArabic ? 'البريد' : 'Email'}: $displayEmail'),
+              const SizedBox(height: 6),
+              Text('${isArabic ? 'الرقم الجامعي' : 'Student ID'}: $displayStudentId'),
+              const SizedBox(height: 6),
+              Text('${isArabic ? 'التخصص' : 'Major'}: $displayMajor'),
+              const SizedBox(height: 6),
+              Text('${isArabic ? 'الهاتف' : 'Phone'}: $displayPhone'),
+              const SizedBox(height: 6),
+              Text('${isArabic ? 'الدور' : 'Role'}: $displayRole'),
+              const SizedBox(height: 6),
+              Text('${isArabic ? 'موقع السكن' : 'Pickup'}: $displayPickup'),
+              const SizedBox(height: 6),
+              Text('${isArabic ? 'رقم الباص' : 'Bus'}: $displayBus'),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(isArabic ? 'إغلاق' : 'Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildProfileAvatar({
+    required Uint8List? photoBytes,
+    required String? photoUrl,
+    required String displayName,
+    required bool isDark,
+  }) {
+    final String fallback = displayName.isNotEmpty ? displayName.characters.first : 'S';
+
+    return Container(
+      width: 62,
+      height: 62,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        color: isDark ? const Color(0xFF1A2733) : const Color(0xFFE8F0FF),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : Colors.black.withValues(alpha: 0.08),
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: photoBytes != null
+            ? Image.memory(
+                photoBytes,
+                fit: BoxFit.cover,
+                alignment: const Alignment(0, -0.15),
+                filterQuality: FilterQuality.high,
+              )
+            : (photoUrl != null
+                ? Image.network(
+                    photoUrl,
+                    fit: BoxFit.cover,
+                    alignment: const Alignment(0, -0.15),
+                    filterQuality: FilterQuality.high,
+                    errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
+                      return Center(
+                        child: Text(
+                          fallback.toUpperCase(),
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: isDark ? AppColors.textPrimary : const Color(0xFF1A3D7A),
+                                fontWeight: FontWeight.w800,
+                              ),
+                        ),
+                      );
+                    },
+                  )
+                : Center(
+                    child: Text(
+                      fallback.toUpperCase(),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: isDark ? AppColors.textPrimary : const Color(0xFF1A3D7A),
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                  )),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final AppSettingsProvider settings = context.watch<AppSettingsProvider>();
@@ -208,6 +382,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final String displayBus = auth.usualBusNumber?.trim().isNotEmpty == true
       ? auth.usualBusNumber!.trim()
       : (isArabic ? 'غير متوفر' : 'Not available');
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     _syncControllers(auth);
 
@@ -221,7 +396,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                HeaderRow(title: strings.appName),
+                Row(
+                  children: <Widget>[
+                    _buildProfileAvatar(
+                      photoBytes: photoBytes,
+                      photoUrl: profilePhotoUrl,
+                      displayName: displayName,
+                      isDark: isDark,
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        strings.appName,
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                              color: AppColors.accentLight,
+                              fontSize: 22,
+                            ),
+                      ),
+                    ),
+                    PopupMenuButton<_ProfileMenuAction>(
+                      icon: Icon(
+                        Icons.more_vert_rounded,
+                        color: isDark ? AppColors.textPrimary : const Color(0xFF101828),
+                      ),
+                      onSelected: (_ProfileMenuAction action) {
+                        switch (action) {
+                          case _ProfileMenuAction.support:
+                            _showSupportDialog(isArabic);
+                            break;
+                          case _ProfileMenuAction.developers:
+                            _showDevelopersDialog(isArabic);
+                            break;
+                          case _ProfileMenuAction.details:
+                            _showPreferredDetailsDialog(auth, isArabic);
+                            break;
+                        }
+                      },
+                      itemBuilder: (BuildContext context) => <PopupMenuEntry<_ProfileMenuAction>>[
+                        PopupMenuItem<_ProfileMenuAction>(
+                          value: _ProfileMenuAction.support,
+                          child: Text(isArabic ? 'الدعم الفني' : 'Technical Support'),
+                        ),
+                        PopupMenuItem<_ProfileMenuAction>(
+                          value: _ProfileMenuAction.developers,
+                          child: Text(isArabic ? 'مطورو التطبيق' : 'App Developers'),
+                        ),
+                        PopupMenuItem<_ProfileMenuAction>(
+                          value: _ProfileMenuAction.details,
+                          child: Text(isArabic ? 'التفاصيل المفضلة' : 'Preferred Details'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 24),
                 Text(
                   strings.profileTitle,
@@ -240,8 +467,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Row(
                         children: <Widget>[
                           Container(
-                            width: 64,
-                            height: 64,
+                            width: 72,
+                            height: 72,
                             decoration: BoxDecoration(
                               gradient: AppColors.primaryGradient,
                               borderRadius: BorderRadius.circular(22),
@@ -265,10 +492,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         ? Image.memory(
                                             photoBytes,
                                             fit: BoxFit.cover,
+                                            alignment: const Alignment(0, -0.15),
+                                            filterQuality: FilterQuality.high,
                                           )
                                         : Image.network(
                                             profilePhotoUrl!,
                                             fit: BoxFit.cover,
+                                            alignment: const Alignment(0, -0.15),
+                                            filterQuality: FilterQuality.high,
                                             errorBuilder: (
                                               BuildContext context,
                                               Object error,
