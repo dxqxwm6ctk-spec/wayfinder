@@ -348,15 +348,6 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                             icon: const Icon(Icons.cancel_outlined),
                             label: Text(strings.cancelRequest),
                             onPressed: () {
-                              if (summaryForView == null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(strings.noActiveRequest),
-                                  ),
-                                );
-                                return;
-                              }
-
                               final RequestExecutionSummary? cancelled = transit
                                   .cancelRequestForArea(summaryForView.area);
 

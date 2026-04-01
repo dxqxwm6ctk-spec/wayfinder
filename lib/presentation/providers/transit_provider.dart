@@ -134,22 +134,28 @@ class TransitProvider extends ChangeNotifier {
     _loading = true;
     notifyListeners();
 
-    final TransitDashboardData dashboard = await _getTransitDashboard();
-    _waitingStudents = dashboard.waitingStudents;
-    _fleetStatus = dashboard.fleetStatus;
-    _pickupAreas = dashboard.pickupAreas;
-    _selectedPickupArea = dashboard.pickupAreas.isNotEmpty
-        ? dashboard.pickupAreas.first
-        : '';
-    _systemStatus = dashboard.systemStatus;
-    _campusConnectivity = dashboard.campusConnectivity;
-    _zones = dashboard.zones;
-    _hasLoaded = true;
-    _touchUpdatedAt();
-    await _startRealtimeSync();
+    try {
+      final TransitDashboardData dashboard = await _getTransitDashboard();
+      _waitingStudents = dashboard.waitingStudents;
+      _fleetStatus = dashboard.fleetStatus;
+      _pickupAreas = dashboard.pickupAreas;
+      _selectedPickupArea = dashboard.pickupAreas.isNotEmpty
+          ? dashboard.pickupAreas.first
+          : '';
+      _systemStatus = dashboard.systemStatus;
+      _campusConnectivity = dashboard.campusConnectivity;
+      _zones = dashboard.zones;
+      _hasLoaded = true;
+      _touchUpdatedAt();
 
-    _loading = false;
-    notifyListeners();
+      // Realtime startup should not block the UI from rendering.
+      unawaited(_startRealtimeSync());
+    } catch (e) {
+      debugPrint('Transit load failed: $e');
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
   }
 
   void toggleImmediatePickup(bool value) {
@@ -505,11 +511,15 @@ class TransitProvider extends ChangeNotifier {
   Future<void> _ensureZonesSeeded() async {
     final List<Map<String, dynamic>> existing = await _firestoreDataService
         .getZones();
-    if (existing.isNotEmpty) {
-      return;
-    }
+    final Set<String> existingNames = existing
+        .map((Map<String, dynamic> data) => _normalize((data['name'] ?? '').toString()))
+        .where((String value) => value.isNotEmpty)
+        .toSet();
 
     for (final Zone zone in _zones) {
+      if (existingNames.contains(_normalize(zone.name))) {
+        continue;
+      }
       await _firestoreDataService.updateZone(zone.id, <String, dynamic>{
         'name': zone.name,
         'studentsWaiting': zone.studentsWaiting,
