@@ -20,6 +20,30 @@ class _FleetManagementScreenState extends State<FleetManagementScreen> {
   final Map<String, TextEditingController> _controllers =
       <String, TextEditingController>{};
 
+  Future<bool> _confirmClearAllRequests(AppStrings strings) async {
+    final bool? result = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text(strings.clearAllRequestsConfirmTitle),
+          content: Text(strings.clearAllRequestsConfirmMessage),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(strings.back),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(strings.confirm),
+            ),
+          ],
+        );
+      },
+    );
+
+    return result ?? false;
+  }
+
   Future<int?> _askBoardedCount(AppStrings strings) async {
     final TextEditingController countController = TextEditingController();
     final int? result = await showDialog<int>(
@@ -122,6 +146,43 @@ class _FleetManagementScreenState extends State<FleetManagementScreen> {
                             color: AppColors.accentLight,
                           ),
                     ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: TextButton.icon(
+                        onPressed: () async {
+                                if (transit.waitingStudents <= 0) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(strings.noStudentsCurrently)),
+                                  );
+                                  return;
+                                }
+                            final bool confirmed =
+                              await _confirmClearAllRequests(strings);
+                            if (!confirmed || !context.mounted) {
+                              return;
+                            }
+                                final int removed =
+                                    transit.clearWaitingStudentsForAllZones();
+                                if (removed > 0) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        strings.allRequestsCleared(removed),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                        icon: const Icon(Icons.delete_sweep_outlined, size: 18),
+                        label: Text(
+                          strings.clearAllRequests,
+                          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                color: AppColors.critical,
+                              ),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 16),
                     ...transit.zones
                         .map((Zone zone) => _zoneCard(context, transit, zone, strings)),
@@ -154,8 +215,8 @@ class _FleetManagementScreenState extends State<FleetManagementScreen> {
       ZoneSeverity.moderate => strings.moderate,
       ZoneSeverity.stable => strings.stable,
     };
-    final bool departed = transit.isBusDeparted(zone.id);
     final int boardedCount = transit.boardedCountForZone(zone.id);
+    final List<String> zoneBuses = transit.assignedBusesForZone(zone.id);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -252,8 +313,27 @@ class _FleetManagementScreenState extends State<FleetManagementScreen> {
                         zone.assignedBus!,
                         style: Theme.of(context).textTheme.headlineMedium,
                       ),
+                      if (zoneBuses.length > 1) ...<Widget>[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.moderate.withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: AppColors.moderate.withValues(alpha: 0.35),
+                            ),
+                          ),
+                          child: Text(
+                            '+${zoneBuses.length - 1}',
+                            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                  color: AppColors.moderate,
+                                ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(width: 8),
-                      if (departed)
+                      if (transit.isBusDeparted(zone.id))
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
@@ -290,13 +370,82 @@ class _FleetManagementScreenState extends State<FleetManagementScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
+                  if (zoneBuses.length > 1)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Column(
+                        children: zoneBuses.map((String bus) {
+                          final bool isPrimary = bus == zoneBuses.first;
+                          final bool departed = transit.isSpecificBusDeparted(zone.id, bus);
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? AppColors.glass.withValues(alpha: 0.25)
+                                  : const Color(0xFFE7ECF6),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Row(
+                              children: <Widget>[
+                                Expanded(
+                                  child: Text(
+                                    isPrimary
+                                        ? 'BUS #$bus (${strings.assign})'
+                                        : 'BUS #$bus',
+                                    style: Theme.of(context).textTheme.labelMedium,
+                                  ),
+                                ),
+                                if (departed)
+                                  Padding(
+                                    padding: const EdgeInsetsDirectional.only(end: 6),
+                                    child: Text(
+                                      strings.departed,
+                                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                            color: AppColors.stable,
+                                          ),
+                                    ),
+                                  ),
+                                if (!departed)
+                                  IconButton(
+                                    tooltip: strings.markDeparted,
+                                    onPressed: () {
+                                      transit.markSpecificBusDeparted(zone.id, bus);
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text(strings.busMarkedDeparted(bus))),
+                                      );
+                                    },
+                                    icon: const Icon(
+                                      Icons.check_circle_outline_rounded,
+                                      size: 18,
+                                      color: AppColors.stable,
+                                    ),
+                                  ),
+                                IconButton(
+                                  tooltip: strings.remove,
+                                  onPressed: () => transit.removeSpecificBus(zone.id, bus),
+                                  icon: const Icon(
+                                    Icons.delete_outline_rounded,
+                                    size: 18,
+                                    color: AppColors.accentLight,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
                   Align(
                     alignment: AlignmentDirectional.centerEnd,
                     child: Wrap(
                       spacing: 2,
                       runSpacing: 2,
                       children: <Widget>[
-                        if (!departed)
+                        if (!transit.isBusDeparted(zone.id))
                           TextButton.icon(
                             onPressed: () {
                               transit.markBusDeparted(zone.id);
@@ -365,6 +514,33 @@ class _FleetManagementScreenState extends State<FleetManagementScreen> {
                           ),
                         ),
                         TextButton.icon(
+                          onPressed: zone.studentsWaiting <= 0
+                              ? null
+                              : () {
+                                  final int removed = transit
+                                      .clearWaitingStudentsForZone(zone.id);
+                                  if (removed > 0) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          strings.requestsCleared(
+                                            strings.localizeZoneName(zone.name),
+                                            removed,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                          icon: const Icon(Icons.group_remove_outlined, size: 16),
+                          label: Text(
+                            strings.clearRequests,
+                            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                  color: AppColors.critical,
+                                ),
+                          ),
+                        ),
+                        TextButton.icon(
                           onPressed: () => transit.removeBus(zone.id),
                           icon: const Icon(Icons.delete_outline_rounded, size: 16),
                           label: Text(
@@ -376,6 +552,53 @@ class _FleetManagementScreenState extends State<FleetManagementScreen> {
                         ),
                       ],
                     ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: TextField(
+                          controller: controller,
+                          textInputAction: TextInputAction.done,
+                          decoration: InputDecoration(
+                            hintText: strings.enterBus,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton.tonalIcon(
+                        onPressed: () {
+                          final String bus = controller.text.trim();
+                          final String normalizedBus = bus
+                              .toUpperCase()
+                              .replaceAll('BUS #', '')
+                              .trim();
+                          if (bus.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(strings.busRequired)),
+                            );
+                            return;
+                          }
+                          if (normalizedBus.startsWith('0')) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(strings.busCannotStartWithZero)),
+                            );
+                            return;
+                          }
+                          final bool ok = transit.addBusToZone(zone.id, bus);
+                          if (!ok) {
+                            return;
+                          }
+                          controller.clear();
+                        },
+                        icon: const Icon(Icons.add_rounded),
+                        label: Text(strings.addBus),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -409,13 +632,26 @@ class _FleetManagementScreenState extends State<FleetManagementScreen> {
                     ),
                     onPressed: () {
                       final String bus = controller.text.trim();
+                      final String normalizedBus = bus
+                          .toUpperCase()
+                          .replaceAll('BUS #', '')
+                          .trim();
                       if (bus.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text(strings.busRequired)),
                         );
                         return;
                       }
-                      transit.assignBus(zone.id, bus);
+                      if (normalizedBus.startsWith('0')) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(strings.busCannotStartWithZero)),
+                        );
+                        return;
+                      }
+                      final bool ok = transit.assignBus(zone.id, bus);
+                      if (!ok) {
+                        return;
+                      }
                       controller.clear();
                     },
                     child: Text(

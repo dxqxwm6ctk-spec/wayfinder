@@ -16,8 +16,8 @@ import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/navigation_provider.dart';
 import 'presentation/providers/transit_provider.dart';
 import 'presentation/providers/unified_auth_provider.dart';
+import 'presentation/screens/auth_wrapper_screen.dart';
 import 'presentation/screens/main_shell_screen.dart';
-import 'presentation/screens/role_selection_screen.dart';
 import 'presentation/theme/app_theme.dart';
 
 Future<void> main() async {
@@ -119,23 +119,7 @@ class WayfinderApp extends StatelessWidget {
             routes: <String, WidgetBuilder>{
               '/main': (_) => const MainShellScreen(),
             },
-            home: Consumer<UnifiedAuthProvider>(
-              builder: (BuildContext context, UnifiedAuthProvider auth, Widget? _) {
-                if (!auth.isAuthStateReady) {
-                  return const Scaffold(
-                    body: Center(
-                      child: CircularProgressIndicator(),
-                    ),
-                  );
-                }
-
-                if (auth.isAuthenticated) {
-                  return const MainShellScreen();
-                }
-
-                return const RoleSelectionScreen();
-              },
-            ),
+            home: const AuthWrapperScreen(),
           );
         },
       ),

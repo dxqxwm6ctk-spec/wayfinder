@@ -85,12 +85,13 @@ class _StatusScreenState extends State<StatusScreen> {
 
     final String area = transit.studentCurrentArea;
     final String? bus = transit.busForStudentArea;
+    final List<String> buses = transit.busesForStudentArea;
     final int? eta = transit.estimatedArrivalMinutesForStudentArea;
     final String rideStatus = transit.hasActiveStudentRequest
         ? strings.activeRide
         : strings.noActiveRide;
     final String areaWithBus = bus != null
-        ? '$area • BUS #$bus'
+      ? '$area • BUS #$bus${buses.length > 1 ? ' (+${buses.length - 1})' : ''}'
         : '$area • ${strings.noBusAssignedToArea}';
     final String etaText = eta != null ? strings.etaMinutes(eta) : strings.etaUnavailable;
     final String lastUpdatedText = _lastUpdatedText(strings, transit.lastUpdatedAt);
@@ -150,6 +151,14 @@ class _StatusScreenState extends State<StatusScreen> {
                         ? AppColors.accentLight
                         : const Color(0xFF4B5B78),
                   ),
+                  if (buses.length > 1) ...<Widget>[
+                    const SizedBox(height: 12),
+                    InfoCard(
+                      title: strings.assignedBuses,
+                      value: buses.map((String b) => 'BUS #$b').join(' • '),
+                      indicatorColor: AppColors.moderate,
+                    ),
+                  ],
                   const SizedBox(height: 14),
                   InfoCard(
                     title: strings.estimatedArrival,

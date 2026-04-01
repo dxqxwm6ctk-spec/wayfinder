@@ -152,8 +152,12 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
     final AppStrings strings = AppStrings(isArabic: settings.isArabic);
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final RequestExecutionSummary? activeSummary = transit.activeRequestSummary;
+    final bool hasLiveActiveRequest =
+      transit.hasActiveStudentRequest && activeSummary != null;
+    final bool hasValidActiveRequest =
+      hasLiveActiveRequest && activeSummary.studentsWaiting > 0;
     final RequestExecutionSummary? summaryForView =
-        activeSummary ?? _lastSummary;
+      hasValidActiveRequest ? activeSummary : null;
 
     _maybeNotifyBusAssigned(transit, strings);
     _maybePromptBusDeparted(transit, strings);
@@ -221,73 +225,8 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 16,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? AppColors.glass.withValues(alpha: 0.28)
-                            : Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                          color: isDark
-                              ? Colors.white.withValues(alpha: 0.1)
-                              : Colors.black.withValues(alpha: 0.06),
-                        ),
-                      ),
-                      child: Row(
-                        children: <Widget>[
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                Text(
-                                  strings.immediatePickup,
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.headlineMedium,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  strings.priorityDispatch,
-                                  style: Theme.of(context).textTheme.labelLarge,
-                                ),
-                              ],
-                            ),
-                          ),
-                          Switch.adaptive(
-                            activeThumbColor: isDark
-                                ? AppColors.textPrimary
-                                : Colors.white,
-                            activeTrackColor: isDark
-                                ? AppColors.accentLight
-                                : AppColors.accent.withValues(alpha: 0.46),
-                            inactiveTrackColor: isDark
-                                ? AppColors.surfaceSoft
-                                : const Color(0xFFD7DFED),
-                            value: transit.immediatePickup,
-                            onChanged: (bool value) {
-                              transit.toggleImmediatePickup(value);
-                              if (!value) {
-                                setState(() {
-                                  _lastSummary = null;
-                                });
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
                     const SizedBox(height: 24),
-                    if (!transit.immediatePickup)
-                      InfoCard(
-                        title: strings.immediatePickup,
-                        value: strings.turnOnImmediateHint,
-                        indicatorColor: const Color(0xFF30343C),
-                      )
-                    else ...<Widget>[
+                    ...<Widget>[
                       Text(
                         strings.pickupArea,
                         style: Theme.of(context).textTheme.labelLarge?.copyWith(
@@ -351,7 +290,7 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                         ),
                       ),
                       const SizedBox(height: 22),
-                      if (!transit.hasActiveStudentRequest)
+                      if (!hasValidActiveRequest)
                         CustomButton(
                           label: strings.confirmRequest,
                           icon: Icons.arrow_forward,
@@ -361,29 +300,33 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                             setState(() {
                               _lastSummary = summary;
                             });
+                            final List<String> buses = transit.busesForArea(summary.area);
                             final String busText =
                                 summary.busNumber == null ||
                                     summary.busNumber!.trim().isEmpty
                                 ? strings.noBusAssigned
                                 : 'BUS #${summary.busNumber}';
+                            final String additionalBusesText = buses.length > 1
+                                ? ' | ${strings.additionalBusesAvailableCount(buses.length - 1)}'
+                                : '';
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
                                   '${strings.selectedArea}: ${summary.area} | '
                                   '${strings.currentlyWaiting}: ${summary.studentsWaiting} ${strings.students} | '
-                                  '${strings.assignedBus}: $busText',
+                                  '${strings.assignedBus}: $busText$additionalBusesText',
                                 ),
                               ),
                             );
                           },
                         ),
-                      if (summaryForView != null)
+                      if (hasValidActiveRequest)
                         CustomButton(
                           label: strings.cancelRequest,
                           icon: Icons.cancel_outlined,
                           onPressed: () {
                             final RequestExecutionSummary? cancelled = transit
-                                .cancelRequestForArea(summaryForView.area);
+                              .cancelRequestForArea(activeSummary.area);
 
                             if (cancelled == null) {
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -431,6 +374,17 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                             ),
                           ],
                         ),
+                        if (transit.busesForArea(summaryForView.area).length > 1) ...<Widget>[
+                          const SizedBox(height: 12),
+                          InfoCard(
+                            title: strings.assignedBuses,
+                            value: transit
+                                .busesForArea(summaryForView.area)
+                                .map((String bus) => 'BUS #$bus')
+                                .join(' • '),
+                            indicatorColor: const Color(0xFF4B5B78),
+                          ),
+                        ],
                         if (transit.shouldPromptStudentBoarding) ...<Widget>[
                           const SizedBox(height: 12),
                           SizedBox(

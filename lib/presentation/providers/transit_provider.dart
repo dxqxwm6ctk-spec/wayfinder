@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/services/firestore_data_service.dart';
 import '../../domain/entities/zone.dart';
@@ -22,10 +25,20 @@ class RequestExecutionSummary {
 class TransitProvider extends ChangeNotifier {
   TransitProvider(this._getTransitDashboard);
 
+  static const String _assignedBusesCacheKey =
+      'transit.assigned_buses_by_zone';
+  static const String _activeRequestAreaCacheKey =
+      'transit.active_request_area';
+  static const int _moderateThreshold = 10;
+  static const int _criticalThreshold = 20;
+  static const Duration _departedAutoRemoveDelay = Duration(minutes: 1);
+
   final GetTransitDashboard _getTransitDashboard;
   final FirestoreDataService _firestoreDataService = FirestoreDataService();
+  SharedPreferences? _preferences;
   StreamSubscription<QuerySnapshot>? _zonesSubscription;
   Timer? _zonesPollingTimer;
+  final Map<String, Timer> _departedAutoRemoveTimers = <String, Timer>{};
   bool _isRealtimeSyncReady = false;
 
   bool _loading = false;
@@ -38,11 +51,19 @@ class TransitProvider extends ChangeNotifier {
   List<String> _pickupAreas = <String>[];
   String _selectedPickupArea = '';
   List<Zone> _zones = <Zone>[];
-  final Set<String> _departedZoneIds = <String>{};
+  final Map<String, List<String>> _assignedBusesByZone =
+      <String, List<String>>{};
+    final Map<String, Set<String>> _departedBusesByZone =
+      <String, Set<String>>{};
+    final Map<String, Map<String, int>> _departedAtByBusByZone =
+      <String, Map<String, int>>{};
+      final Map<String, int> _requestsClearedAtByZone = <String, int>{};
+      final Map<String, int> _lastHandledClearedAtByZone = <String, int>{};
   final Map<String, int> _boardedStudentsByZone = <String, int>{};
   bool _hasActiveStudentRequest = false;
   String? _activeRequestArea;
   DateTime? _lastUpdatedAt;
+  DateTime? _lastActiveRequestReconcileAt;
 
   bool get loading => _loading;
   int get waitingStudents => _waitingStudents;
@@ -60,6 +81,10 @@ class TransitProvider extends ChangeNotifier {
   List<String> get pickupAreas => _pickupAreas;
   String get selectedPickupArea => _selectedPickupArea;
   List<Zone> get zones => _zones;
+  List<String> assignedBusesForZone(String zoneId) {
+    return List<String>.unmodifiable(_assignedBusesByZone[zoneId] ?? <String>[]);
+  }
+
   bool get hasActiveStudentRequest => _hasActiveStudentRequest;
   String? get activeRequestArea => _activeRequestArea;
   DateTime? get lastUpdatedAt => _lastUpdatedAt;
@@ -93,6 +118,10 @@ class TransitProvider extends ChangeNotifier {
       return null;
     }
     return bus;
+  }
+
+  List<String> get busesForStudentArea {
+    return busesForArea(studentCurrentArea);
   }
 
   bool get shouldPromptStudentBoarding {
@@ -136,6 +165,9 @@ class TransitProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      _preferences ??= await SharedPreferences.getInstance();
+      await _migrateLegacyActiveRequestCacheIfNeeded();
+
       final TransitDashboardData dashboard = await _getTransitDashboard();
       _waitingStudents = dashboard.waitingStudents;
       _fleetStatus = dashboard.fleetStatus;
@@ -146,6 +178,9 @@ class TransitProvider extends ChangeNotifier {
       _systemStatus = dashboard.systemStatus;
       _campusConnectivity = dashboard.campusConnectivity;
       _zones = dashboard.zones;
+      _restoreAssignedBusesFromCache();
+      _restoreActiveRequestFromCache();
+      _recomputeZoneSeverityAndSort();
       _hasLoaded = true;
       _touchUpdatedAt();
 
@@ -171,11 +206,19 @@ class TransitProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void assignBus(String zoneId, String busNumber) {
+  bool assignBus(String zoneId, String busNumber) {
     final String normalizedBus = busNumber
         .toUpperCase()
         .replaceAll('BUS #', '')
         .trim();
+    if (normalizedBus.isEmpty) {
+      return false;
+    }
+    if (normalizedBus.startsWith('0')) {
+      return false;
+    }
+
+    final List<String> buses = <String>[normalizedBus];
     _zones = _zones
         .map(
           (Zone zone) => zone.id == zoneId
@@ -183,13 +226,53 @@ class TransitProvider extends ChangeNotifier {
               : zone,
         )
         .toList();
-    _departedZoneIds.remove(zoneId);
+    _assignedBusesByZone[zoneId] = buses;
+    _departedBusesByZone.remove(zoneId);
+    _departedAtByBusByZone.remove(zoneId);
+    _cancelAutoRemoveTimersForZone(zoneId);
     _touchUpdatedAt();
     notifyListeners();
-    _syncZoneUpdate(zoneId, <String, dynamic>{
-      'assignedBus': normalizedBus,
-      'departed': false,
-    });
+    _persistAssignedBusesToCache();
+    _syncZoneUpdate(zoneId, _buildZoneBusSyncData(zoneId));
+    return true;
+  }
+
+  bool addBusToZone(String zoneId, String busNumber) {
+    final String normalizedBus = busNumber
+        .toUpperCase()
+        .replaceAll('BUS #', '')
+        .trim();
+    if (normalizedBus.isEmpty) {
+      return false;
+    }
+    if (normalizedBus.startsWith('0')) {
+      return false;
+    }
+
+    final List<String> current = List<String>.from(
+      _assignedBusesByZone[zoneId] ?? <String>[],
+    );
+
+    if (current.any((String bus) => _normalize(bus) == _normalize(normalizedBus))) {
+      return false;
+    }
+
+    current.add(normalizedBus);
+    _assignedBusesByZone[zoneId] = current;
+
+    _zones = _zones
+        .map(
+          (Zone zone) => zone.id == zoneId
+              ? zone.copyWith(assignedBus: current.first)
+              : zone,
+        )
+        .toList();
+
+    _touchUpdatedAt();
+    notifyListeners();
+    _persistAssignedBusesToCache();
+    _syncZoneUpdate(zoneId, _buildZoneBusSyncData(zoneId));
+    return true;
   }
 
   void removeBus(String zoneId) {
@@ -199,30 +282,208 @@ class TransitProvider extends ChangeNotifier {
               zone.id == zoneId ? zone.copyWith(clearAssignedBus: true) : zone,
         )
         .toList();
-    _departedZoneIds.remove(zoneId);
+    _assignedBusesByZone.remove(zoneId);
+    _departedBusesByZone.remove(zoneId);
+    _departedAtByBusByZone.remove(zoneId);
+    _cancelAutoRemoveTimersForZone(zoneId);
     _touchUpdatedAt();
     notifyListeners();
-    _syncZoneUpdate(zoneId, <String, dynamic>{
-      'assignedBus': FieldValue.delete(),
-      'departed': false,
-    });
+    _persistAssignedBusesToCache();
+    _syncZoneUpdate(zoneId, _buildZoneBusSyncData(zoneId));
   }
 
   void markBusDeparted(String zoneId) {
-    final Zone? zone = _firstWhereOrNull((Zone z) => z.id == zoneId);
-    if (zone == null ||
-        zone.assignedBus == null ||
-        zone.assignedBus!.trim().isEmpty) {
+    final List<String> buses = _assignedBusesByZone[zoneId] ?? <String>[];
+    if (buses.isEmpty) {
       return;
     }
-    _departedZoneIds.add(zoneId);
+    markSpecificBusDeparted(zoneId, buses.first);
+  }
+
+  void markSpecificBusDeparted(String zoneId, String busNumber) {
+    final String normalizedBus =
+        busNumber.toUpperCase().replaceAll('BUS #', '').trim();
+    final List<String> buses = _assignedBusesByZone[zoneId] ?? <String>[];
+    if (normalizedBus.isEmpty ||
+        !buses.any((String bus) => _normalize(bus) == _normalize(normalizedBus))) {
+      return;
+    }
+
+    final Set<String> departed = Set<String>.from(
+      _departedBusesByZone[zoneId] ?? <String>{},
+    );
+    departed.add(normalizedBus);
+    _departedBusesByZone[zoneId] = departed;
+
+    final Map<String, int> departedAtByBus = Map<String, int>.from(
+      _departedAtByBusByZone[zoneId] ?? <String, int>{},
+    );
+    departedAtByBus[normalizedBus] = DateTime.now().millisecondsSinceEpoch;
+    _departedAtByBusByZone[zoneId] = departedAtByBus;
+
+    _scheduleAutoRemoveBus(zoneId, normalizedBus);
     _touchUpdatedAt();
     notifyListeners();
-    _syncZoneUpdate(zoneId, <String, dynamic>{'departed': true});
+    _persistAssignedBusesToCache();
+    _syncZoneUpdate(zoneId, _buildZoneBusSyncData(zoneId));
+  }
+
+  void removeSpecificBus(String zoneId, String busNumber) {
+    final String normalizedBus =
+        busNumber.toUpperCase().replaceAll('BUS #', '').trim();
+    final List<String> current = List<String>.from(
+      _assignedBusesByZone[zoneId] ?? <String>[],
+    );
+    if (current.isEmpty || normalizedBus.isEmpty) {
+      return;
+    }
+
+    current.removeWhere(
+      (String bus) => _normalize(bus) == _normalize(normalizedBus),
+    );
+
+    final Set<String> departed = Set<String>.from(
+      _departedBusesByZone[zoneId] ?? <String>{},
+    )..removeWhere((String bus) => _normalize(bus) == _normalize(normalizedBus));
+
+    final Map<String, int> departedAt = Map<String, int>.from(
+      _departedAtByBusByZone[zoneId] ?? <String, int>{},
+    )..removeWhere((String bus, _) => _normalize(bus) == _normalize(normalizedBus));
+
+    if (current.isEmpty) {
+      _assignedBusesByZone.remove(zoneId);
+      _departedBusesByZone.remove(zoneId);
+      _departedAtByBusByZone.remove(zoneId);
+      _zones = _zones
+          .map(
+            (Zone zone) => zone.id == zoneId
+                ? zone.copyWith(clearAssignedBus: true)
+                : zone,
+          )
+          .toList();
+    } else {
+      _assignedBusesByZone[zoneId] = current;
+      if (departed.isEmpty) {
+        _departedBusesByZone.remove(zoneId);
+      } else {
+        _departedBusesByZone[zoneId] = departed;
+      }
+      if (departedAt.isEmpty) {
+        _departedAtByBusByZone.remove(zoneId);
+      } else {
+        _departedAtByBusByZone[zoneId] = departedAt;
+      }
+      _zones = _zones
+          .map(
+            (Zone zone) => zone.id == zoneId
+                ? zone.copyWith(assignedBus: current.first)
+                : zone,
+          )
+          .toList();
+    }
+
+    _cancelAutoRemoveTimer(zoneId, normalizedBus);
+    _touchUpdatedAt();
+    notifyListeners();
+    _persistAssignedBusesToCache();
+    _syncZoneUpdate(zoneId, _buildZoneBusSyncData(zoneId));
+  }
+
+  void _scheduleAutoRemoveBus(String zoneId, String busNumber) {
+    final String key = _busTimerKey(zoneId, busNumber);
+    _cancelAutoRemoveTimer(zoneId, busNumber);
+    _departedAutoRemoveTimers[key] = Timer(_departedAutoRemoveDelay, () {
+      _autoRemoveDepartedBus(zoneId, busNumber);
+    });
+  }
+
+  void _cancelAutoRemoveTimer(String zoneId, String busNumber) {
+    _departedAutoRemoveTimers.remove(_busTimerKey(zoneId, busNumber))?.cancel();
+  }
+
+  void _cancelAutoRemoveTimersForZone(String zoneId) {
+    final List<String> keys = _departedAutoRemoveTimers.keys
+        .where((String key) => key.startsWith('$zoneId|'))
+        .toList();
+    for (final String key in keys) {
+      _departedAutoRemoveTimers.remove(key)?.cancel();
+    }
+  }
+
+  String _busTimerKey(String zoneId, String busNumber) {
+    return '$zoneId|${_normalize(busNumber)}';
+  }
+
+  void _autoRemoveDepartedBus(String zoneId, String busNumber) {
+    final String normalizedBus =
+        busNumber.toUpperCase().replaceAll('BUS #', '').trim();
+    final Zone? zone = _firstWhereOrNull((Zone z) => z.id == zoneId);
+    final List<String> current = List<String>.from(
+      _assignedBusesByZone[zoneId] ?? <String>[],
+    );
+
+    if (zone == null ||
+        normalizedBus.isEmpty ||
+        current.isEmpty ||
+        !current.any((String bus) => _normalize(bus) == _normalize(normalizedBus)) ||
+        !isSpecificBusDeparted(zoneId, normalizedBus)) {
+      return;
+    }
+
+    current.removeWhere((String bus) => _normalize(bus) == _normalize(normalizedBus));
+
+    final Set<String> departed = Set<String>.from(
+      _departedBusesByZone[zoneId] ?? <String>{},
+    )..removeWhere((String bus) => _normalize(bus) == _normalize(normalizedBus));
+    final Map<String, int> departedAt = Map<String, int>.from(
+      _departedAtByBusByZone[zoneId] ?? <String, int>{},
+    )..removeWhere((String bus, _) => _normalize(bus) == _normalize(normalizedBus));
+
+    final String? nextPrimary = current.isEmpty ? null : current.first;
+    _zones = _zones
+        .map(
+          (Zone item) => item.id == zoneId
+              ? (nextPrimary == null
+                    ? item.copyWith(clearAssignedBus: true)
+                    : item.copyWith(assignedBus: nextPrimary))
+              : item,
+        )
+        .toList();
+
+    if (current.isEmpty) {
+      _assignedBusesByZone.remove(zoneId);
+    } else {
+      _assignedBusesByZone[zoneId] = current;
+    }
+    if (departed.isEmpty) {
+      _departedBusesByZone.remove(zoneId);
+    } else {
+      _departedBusesByZone[zoneId] = departed;
+    }
+    if (departedAt.isEmpty) {
+      _departedAtByBusByZone.remove(zoneId);
+    } else {
+      _departedAtByBusByZone[zoneId] = departedAt;
+    }
+    _cancelAutoRemoveTimer(zoneId, normalizedBus);
+    _touchUpdatedAt();
+    notifyListeners();
+    _persistAssignedBusesToCache();
+
+    _syncZoneUpdate(zoneId, _buildZoneBusSyncData(zoneId));
   }
 
   bool isBusDeparted(String zoneId) {
-    return _departedZoneIds.contains(zoneId);
+    final List<String> buses = _assignedBusesByZone[zoneId] ?? <String>[];
+    if (buses.isEmpty) {
+      return false;
+    }
+    return isSpecificBusDeparted(zoneId, buses.first);
+  }
+
+  bool isSpecificBusDeparted(String zoneId, String busNumber) {
+    final Set<String> departed = _departedBusesByZone[zoneId] ?? <String>{};
+    return departed.any((String bus) => _normalize(bus) == _normalize(busNumber));
   }
 
   RequestExecutionSummary executeImmediateRequest() {
@@ -245,7 +506,13 @@ class TransitProvider extends ChangeNotifier {
 
     _hasActiveStudentRequest = true;
     _activeRequestArea = _selectedPickupArea;
+    if (zone != null) {
+      _lastHandledClearedAtByZone[zone.id] =
+          _requestsClearedAtByZone[zone.id] ?? 0;
+    }
+    _recomputeZoneSeverityAndSort();
     _touchUpdatedAt();
+    _persistActiveRequestToCache();
     notifyListeners();
 
     final Zone? updatedZone = _zoneByPickupArea(_selectedPickupArea);
@@ -261,6 +528,13 @@ class TransitProvider extends ChangeNotifier {
 
     if (zone != null) {
       if (zone.studentsWaiting <= 0) {
+        if (_hasActiveStudentRequest && _activeRequestArea == area) {
+          _hasActiveStudentRequest = false;
+          _activeRequestArea = null;
+          _persistActiveRequestToCache();
+          _touchUpdatedAt();
+          notifyListeners();
+        }
         return null;
       }
 
@@ -283,8 +557,10 @@ class TransitProvider extends ChangeNotifier {
       if (_hasActiveStudentRequest && _activeRequestArea == area) {
         _hasActiveStudentRequest = false;
         _activeRequestArea = null;
+        _persistActiveRequestToCache();
       }
 
+      _recomputeZoneSeverityAndSort();
       _touchUpdatedAt();
       notifyListeners();
 
@@ -304,6 +580,7 @@ class TransitProvider extends ChangeNotifier {
     if (_hasActiveStudentRequest && _activeRequestArea == area) {
       _hasActiveStudentRequest = false;
       _activeRequestArea = null;
+      _persistActiveRequestToCache();
     }
     _touchUpdatedAt();
     notifyListeners();
@@ -345,7 +622,9 @@ class TransitProvider extends ChangeNotifier {
 
     _hasActiveStudentRequest = false;
     _activeRequestArea = null;
+    _recomputeZoneSeverityAndSort();
     _touchUpdatedAt();
+    _persistActiveRequestToCache();
     notifyListeners();
     return true;
   }
@@ -377,6 +656,7 @@ class TransitProvider extends ChangeNotifier {
     _boardedStudentsByZone[zoneId] =
         (_boardedStudentsByZone[zoneId] ?? 0) + applied;
 
+    _recomputeZoneSeverityAndSort();
     _touchUpdatedAt();
     notifyListeners();
     return applied;
@@ -391,6 +671,72 @@ class TransitProvider extends ChangeNotifier {
     return zone?.studentsWaiting ?? 0;
   }
 
+  int clearWaitingStudentsForZone(String zoneId) {
+    final Zone? zone = _firstWhereOrNull((Zone z) => z.id == zoneId);
+    if (zone == null || zone.studentsWaiting <= 0) {
+      return 0;
+    }
+
+    final int removed = zone.studentsWaiting;
+    _zones = _zones
+        .map(
+          (Zone item) =>
+              item.id == zoneId ? item.copyWith(studentsWaiting: 0) : item,
+        )
+        .toList();
+
+    _waitingStudents = (_waitingStudents - removed).clamp(0, _waitingStudents);
+    _recomputeZoneSeverityAndSort();
+    _touchUpdatedAt();
+    notifyListeners();
+
+    final int clearedAt = DateTime.now().millisecondsSinceEpoch;
+    _requestsClearedAtByZone[zoneId] = clearedAt;
+    _syncZoneUpdate(zoneId, <String, dynamic>{
+      'studentsWaiting': 0,
+      'requestsClearedAt': clearedAt,
+    });
+    return removed;
+  }
+
+  int clearWaitingStudentsForAllZones() {
+    final List<Zone> zonesWithWaiting = _zones
+        .where((Zone zone) => zone.studentsWaiting > 0)
+        .toList();
+    if (zonesWithWaiting.isEmpty) {
+      return 0;
+    }
+
+    final int removed = zonesWithWaiting.fold<int>(
+      0,
+      (int sum, Zone zone) => sum + zone.studentsWaiting,
+    );
+
+    _zones = _zones
+        .map(
+          (Zone zone) => zone.studentsWaiting > 0
+              ? zone.copyWith(studentsWaiting: 0)
+              : zone,
+        )
+        .toList();
+
+    _waitingStudents = 0;
+    _recomputeZoneSeverityAndSort();
+    _touchUpdatedAt();
+    notifyListeners();
+
+    final int clearedAt = DateTime.now().millisecondsSinceEpoch;
+    for (final Zone zone in zonesWithWaiting) {
+      _requestsClearedAtByZone[zone.id] = clearedAt;
+      _syncZoneUpdate(zone.id, <String, dynamic>{
+        'studentsWaiting': 0,
+        'requestsClearedAt': clearedAt,
+      });
+    }
+
+    return removed;
+  }
+
   String? assignedBusForArea(String area) {
     final Zone? zone = _zoneByPickupArea(area);
     final String? bus = zone?.assignedBus?.trim();
@@ -398,6 +744,26 @@ class TransitProvider extends ChangeNotifier {
       return null;
     }
     return bus;
+  }
+
+  List<String> busesForArea(String area) {
+    final Zone? zone = _zoneByPickupArea(area);
+    if (zone == null) {
+      return <String>[];
+    }
+
+    final List<String> buses = List<String>.from(
+      _assignedBusesByZone[zone.id] ?? <String>[],
+    );
+    if (buses.isNotEmpty) {
+      return buses;
+    }
+
+    final String? bus = zone.assignedBus?.trim();
+    if (bus == null || bus.isEmpty) {
+      return <String>[];
+    }
+    return <String>[bus];
   }
 
   Zone? _zoneByPickupArea(String area) {
@@ -426,15 +792,50 @@ class TransitProvider extends ChangeNotifier {
     return null;
   }
 
-  ZoneSeverity _severityFromString(String? value) {
-    switch ((value ?? '').toLowerCase()) {
-      case 'critical':
-        return ZoneSeverity.critical;
-      case 'moderate':
-        return ZoneSeverity.moderate;
-      default:
-        return ZoneSeverity.stable;
+  ZoneSeverity _severityFromWaitingCount(int waitingCount) {
+    if (waitingCount >= _criticalThreshold) {
+      return ZoneSeverity.critical;
     }
+    if (waitingCount >= _moderateThreshold) {
+      return ZoneSeverity.moderate;
+    }
+    return ZoneSeverity.stable;
+  }
+
+  int _severityRank(ZoneSeverity severity) {
+    switch (severity) {
+      case ZoneSeverity.critical:
+        return 3;
+      case ZoneSeverity.moderate:
+        return 2;
+      case ZoneSeverity.stable:
+        return 1;
+    }
+  }
+
+  void _recomputeZoneSeverityAndSort() {
+    _zones = _zones
+        .map(
+          (Zone zone) => zone.copyWith(
+            severity: _severityFromWaitingCount(zone.studentsWaiting),
+          ),
+        )
+        .toList()
+      ..sort((Zone a, Zone b) {
+        final int severityCmp =
+            _severityRank(b.severity).compareTo(_severityRank(a.severity));
+        if (severityCmp != 0) {
+          return severityCmp;
+        }
+
+        final int waitingCmp =
+            b.studentsWaiting.compareTo(a.studentsWaiting);
+        if (waitingCmp != 0) {
+          return waitingCmp;
+        }
+
+        return a.name.compareTo(b.name);
+      });
   }
 
   String _severityToString(ZoneSeverity severity) {
@@ -473,7 +874,9 @@ class TransitProvider extends ChangeNotifier {
             id: doc.id,
             name: (data['name'] as String?) ?? doc.id,
             studentsWaiting: (data['studentsWaiting'] as int?) ?? 0,
-            severity: _severityFromString(data['severity'] as String?),
+            severity: _severityFromWaitingCount(
+              (data['studentsWaiting'] as int?) ?? 0,
+            ),
             assignedBus:
                 (data['assignedBus'] as String?)?.trim().isEmpty == true
                 ? null
@@ -481,7 +884,58 @@ class TransitProvider extends ChangeNotifier {
           );
         }).toList();
 
-        _applyIncomingZones(incoming);
+        final Map<String, List<String>> assignedBusesByZone =
+            <String, List<String>>{};
+        final Map<String, Set<String>> departedBusesByZone =
+            <String, Set<String>>{};
+        final Map<String, Map<String, int>> departedAtByBusByZone =
+            <String, Map<String, int>>{};
+        final Map<String, int> requestsClearedAtByZone = <String, int>{};
+        for (final QueryDocumentSnapshot doc in snapshot.docs) {
+          final Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          final dynamic rawBuses = data['assignedBuses'];
+          final List<String> buses = _normalizeAssignedBuses(
+            rawBuses,
+            fallback: data['assignedBus'] as String?,
+          );
+          if (buses.isNotEmpty) {
+            assignedBusesByZone[doc.id] = buses;
+          }
+
+          final Set<String> departedBuses = _normalizeDepartedBuses(
+            data['departedBuses'],
+            fallbackDeparted: (data['departed'] as bool?) ?? false,
+            fallbackPrimaryBus: data['assignedBus'] as String?,
+          );
+          if (departedBuses.isNotEmpty) {
+            departedBusesByZone[doc.id] = departedBuses;
+          }
+
+          final Map<String, int> departedAtByBus = _normalizeDepartedAtByBus(
+            data['departedAtByBus'],
+            fallbackPrimaryBus: data['assignedBus'] as String?,
+            fallbackDepartedAt: data['departedAt'],
+            fallbackDeparted: (data['departed'] as bool?) ?? false,
+          );
+          if (departedAtByBus.isNotEmpty) {
+            departedAtByBusByZone[doc.id] = departedAtByBus;
+          }
+
+          final int? requestsClearedAt = _timestampToMillis(
+            data['requestsClearedAt'],
+          );
+          if (requestsClearedAt != null) {
+            requestsClearedAtByZone[doc.id] = requestsClearedAt;
+          }
+        }
+
+        _applyIncomingZones(
+          incoming,
+          assignedBusesByZone,
+          departedBusesByZone,
+          departedAtByBusByZone,
+          requestsClearedAtByZone,
+        );
       }, onError: (Object error) {
         debugPrint('Zones stream error: $error');
       });
@@ -494,13 +948,59 @@ class TransitProvider extends ChangeNotifier {
     }
   }
 
-  void _applyIncomingZones(List<Zone> incoming) {
+  void _applyIncomingZones(
+    List<Zone> incoming,
+    Map<String, List<String>> assignedBusesByZone,
+    Map<String, Set<String>> departedBusesByZone,
+    Map<String, Map<String, int>> departedAtByBusByZone,
+    Map<String, int> requestsClearedAtByZone,
+  ) {
     if (incoming.isEmpty) {
       return;
     }
 
     final String previousArea = _selectedPickupArea;
     _zones = incoming;
+    _recomputeZoneSeverityAndSort();
+    _assignedBusesByZone
+      ..clear()
+      ..addAll(assignedBusesByZone);
+    _departedBusesByZone
+      ..clear()
+      ..addAll(departedBusesByZone);
+    _departedAtByBusByZone
+      ..clear()
+      ..addAll(departedAtByBusByZone);
+    _requestsClearedAtByZone
+      ..clear()
+      ..addAll(requestsClearedAtByZone);
+
+    final DateTime now = DateTime.now();
+    for (final Zone zone in incoming) {
+      final List<String> buses = assignedBusesByZone[zone.id] ?? <String>[];
+      final Set<String> departed = departedBusesByZone[zone.id] ?? <String>{};
+      final Map<String, int> departedAt =
+          departedAtByBusByZone[zone.id] ?? <String, int>{};
+
+      if (buses.isEmpty || departed.isEmpty) {
+        _cancelAutoRemoveTimersForZone(zone.id);
+        continue;
+      }
+
+      for (final String bus in departed) {
+        final int? departedAtMillis = departedAt[bus];
+        if (departedAtMillis != null) {
+          final DateTime departedAtTime =
+              DateTime.fromMillisecondsSinceEpoch(departedAtMillis);
+          if (now.difference(departedAtTime) >= _departedAutoRemoveDelay) {
+            _autoRemoveDepartedBus(zone.id, bus);
+            continue;
+          }
+        }
+        _scheduleAutoRemoveBus(zone.id, bus);
+      }
+    }
+
     _pickupAreas = incoming.map((Zone zone) => zone.name).toList();
     _waitingStudents = incoming.fold<int>(
       0,
@@ -514,8 +1014,12 @@ class TransitProvider extends ChangeNotifier {
       _selectedPickupArea = stillExists ? previousArea : _pickupAreas.first;
     }
 
+    _handleLeaderClearedRequests();
+    _ensureActiveRequestWaitingInvariant(syncToRemote: true);
+
     _touchUpdatedAt();
     notifyListeners();
+    _persistAssignedBusesToCache();
   }
 
   void _startPollingFallback() {
@@ -534,19 +1038,413 @@ class TransitProvider extends ChangeNotifier {
               id: doc.id,
               name: (data['name'] as String?) ?? doc.id,
               studentsWaiting: (data['studentsWaiting'] as int?) ?? 0,
-              severity: _severityFromString(data['severity'] as String?),
+              severity: _severityFromWaitingCount(
+                (data['studentsWaiting'] as int?) ?? 0,
+              ),
               assignedBus:
                   (data['assignedBus'] as String?)?.trim().isEmpty == true
                   ? null
                   : data['assignedBus'] as String?,
             );
           }).toList();
-          _applyIncomingZones(incoming);
+
+          final Map<String, List<String>> assignedBusesByZone =
+              <String, List<String>>{};
+          final Map<String, Set<String>> departedBusesByZone =
+              <String, Set<String>>{};
+          final Map<String, Map<String, int>> departedAtByBusByZone =
+              <String, Map<String, int>>{};
+            final Map<String, int> requestsClearedAtByZone = <String, int>{};
+          for (final QueryDocumentSnapshot<Map<String, dynamic>> doc
+              in snapshot.docs) {
+            final Map<String, dynamic> data = doc.data();
+            final List<String> buses = _normalizeAssignedBuses(
+              data['assignedBuses'],
+              fallback: data['assignedBus'] as String?,
+            );
+            if (buses.isNotEmpty) {
+              assignedBusesByZone[doc.id] = buses;
+            }
+
+            final Set<String> departedBuses = _normalizeDepartedBuses(
+              data['departedBuses'],
+              fallbackDeparted: (data['departed'] as bool?) ?? false,
+              fallbackPrimaryBus: data['assignedBus'] as String?,
+            );
+            if (departedBuses.isNotEmpty) {
+              departedBusesByZone[doc.id] = departedBuses;
+            }
+
+            final Map<String, int> departedAtByBus = _normalizeDepartedAtByBus(
+              data['departedAtByBus'],
+              fallbackPrimaryBus: data['assignedBus'] as String?,
+              fallbackDepartedAt: data['departedAt'],
+              fallbackDeparted: (data['departed'] as bool?) ?? false,
+            );
+            if (departedAtByBus.isNotEmpty) {
+              departedAtByBusByZone[doc.id] = departedAtByBus;
+            }
+
+            final int? requestsClearedAt = _timestampToMillis(
+              data['requestsClearedAt'],
+            );
+            if (requestsClearedAt != null) {
+              requestsClearedAtByZone[doc.id] = requestsClearedAt;
+            }
+          }
+
+          _applyIncomingZones(
+            incoming,
+            assignedBusesByZone,
+            departedBusesByZone,
+            departedAtByBusByZone,
+            requestsClearedAtByZone,
+          );
         } catch (e) {
           debugPrint('Zones polling fallback failed: $e');
         }
       });
     });
+  }
+
+  List<String> _normalizeAssignedBuses(dynamic raw, {String? fallback}) {
+    final Set<String> unique = <String>{};
+
+    if (raw is List) {
+      for (final dynamic item in raw) {
+        final String value = item.toString().trim();
+        if (value.isEmpty) {
+          continue;
+        }
+        unique.add(value.toUpperCase().replaceAll('BUS #', '').trim());
+      }
+    }
+
+    final String fallbackValue = (fallback ?? '').trim();
+    if (fallbackValue.isNotEmpty) {
+      unique.add(fallbackValue.toUpperCase().replaceAll('BUS #', '').trim());
+    }
+
+    return unique.where((String value) => value.isNotEmpty).toList();
+  }
+
+  Set<String> _normalizeDepartedBuses(
+    dynamic raw, {
+    required bool fallbackDeparted,
+    String? fallbackPrimaryBus,
+  }) {
+    final Set<String> result = <String>{};
+
+    if (raw is List) {
+      for (final dynamic item in raw) {
+        final String value = item.toString().trim();
+        if (value.isEmpty) {
+          continue;
+        }
+        result.add(value.toUpperCase().replaceAll('BUS #', '').trim());
+      }
+    }
+
+    final String primary = (fallbackPrimaryBus ?? '').trim();
+    if (fallbackDeparted && primary.isNotEmpty) {
+      result.add(primary.toUpperCase().replaceAll('BUS #', '').trim());
+    }
+
+    return result;
+  }
+
+  Map<String, int> _normalizeDepartedAtByBus(
+    dynamic raw, {
+    String? fallbackPrimaryBus,
+    dynamic fallbackDepartedAt,
+    required bool fallbackDeparted,
+  }) {
+    final Map<String, int> result = <String, int>{};
+
+    if (raw is Map) {
+      raw.forEach((dynamic key, dynamic value) {
+        final String bus = key.toString().trim();
+        if (bus.isEmpty) {
+          return;
+        }
+
+        int? millis;
+        if (value is int) {
+          millis = value;
+        } else if (value is num) {
+          millis = value.toInt();
+        } else if (value is Timestamp) {
+          millis = value.millisecondsSinceEpoch;
+        }
+
+        if (millis != null) {
+          result[bus.toUpperCase().replaceAll('BUS #', '').trim()] = millis;
+        }
+      });
+    }
+
+    final String primary = (fallbackPrimaryBus ?? '').trim();
+    if (fallbackDeparted && primary.isNotEmpty && !result.containsKey(primary)) {
+      int millis = DateTime.now().millisecondsSinceEpoch;
+      if (fallbackDepartedAt is Timestamp) {
+        millis = fallbackDepartedAt.millisecondsSinceEpoch;
+      } else if (fallbackDepartedAt is int) {
+        millis = fallbackDepartedAt;
+      }
+      result[primary.toUpperCase().replaceAll('BUS #', '').trim()] = millis;
+    }
+
+    return result;
+  }
+
+  int? _timestampToMillis(dynamic raw) {
+    if (raw == null) {
+      return null;
+    }
+    if (raw is Timestamp) {
+      return raw.millisecondsSinceEpoch;
+    }
+    if (raw is int) {
+      return raw;
+    }
+    if (raw is num) {
+      return raw.toInt();
+    }
+    return null;
+  }
+
+  void _handleLeaderClearedRequests() {
+    if (!_hasActiveStudentRequest || _activeRequestArea == null) {
+      return;
+    }
+
+    final Zone? zone = _zoneByPickupArea(_activeRequestArea!);
+    if (zone == null) {
+      return;
+    }
+
+    final int? clearedAt = _requestsClearedAtByZone[zone.id];
+    if (clearedAt == null) {
+      return;
+    }
+
+    final int lastHandled = _lastHandledClearedAtByZone[zone.id] ?? 0;
+    if (clearedAt <= lastHandled) {
+      return;
+    }
+
+    _lastHandledClearedAtByZone[zone.id] = clearedAt;
+    _hasActiveStudentRequest = false;
+    _activeRequestArea = null;
+    _persistActiveRequestToCache();
+  }
+
+  Map<String, dynamic> _buildZoneBusSyncData(String zoneId) {
+    final List<String> buses = _assignedBusesByZone[zoneId] ?? <String>[];
+    final Set<String> departedSet = _departedBusesByZone[zoneId] ?? <String>{};
+    final Map<String, int> departedAtByBus =
+        _departedAtByBusByZone[zoneId] ?? <String, int>{};
+
+    final String? primaryBus = buses.isEmpty ? null : buses.first;
+    final bool primaryDeparted = primaryBus != null &&
+        departedSet.any((String bus) => _normalize(bus) == _normalize(primaryBus));
+    final int? primaryDepartedAt = primaryBus == null
+        ? null
+        : departedAtByBus[primaryBus];
+
+    return <String, dynamic>{
+      'assignedBus': primaryBus ?? FieldValue.delete(),
+      'assignedBuses': buses.isEmpty ? FieldValue.delete() : buses,
+      'departed': primaryDeparted,
+      'departedAt': primaryDepartedAt ?? FieldValue.delete(),
+      'departedBuses': departedSet.isEmpty ? FieldValue.delete() : departedSet.toList(),
+      'departedAtByBus': departedAtByBus.isEmpty
+          ? FieldValue.delete()
+          : departedAtByBus,
+    };
+  }
+
+  void _restoreAssignedBusesFromCache() {
+    final String? raw = _preferences?.getString(_assignedBusesCacheKey);
+    if (raw == null || raw.isEmpty) {
+      return;
+    }
+
+    try {
+      final Map<String, dynamic> decoded =
+          jsonDecode(raw) as Map<String, dynamic>;
+      final Map<String, List<String>> restored = <String, List<String>>{};
+
+      decoded.forEach((String zoneId, dynamic value) {
+        if (value is! List) {
+          return;
+        }
+
+        final List<String> buses = value
+            .map((dynamic item) => item.toString().trim())
+            .where((String bus) => bus.isNotEmpty)
+            .map((String bus) => bus.toUpperCase().replaceAll('BUS #', '').trim())
+            .where((String bus) => bus.isNotEmpty)
+            .toList();
+
+        if (buses.isNotEmpty) {
+          restored[zoneId] = buses;
+        }
+      });
+
+      if (restored.isEmpty) {
+        return;
+      }
+
+      _assignedBusesByZone
+        ..clear()
+        ..addAll(restored);
+
+      _zones = _zones
+          .map((Zone zone) {
+            final List<String>? buses = restored[zone.id];
+            if (buses == null || buses.isEmpty) {
+              return zone;
+            }
+            return zone.copyWith(assignedBus: buses.first);
+          })
+          .toList();
+    } catch (_) {
+      // Ignore corrupt cache and continue with remote state.
+    }
+  }
+
+  void _restoreActiveRequestFromCache() {
+    final String? activeRequestCacheKey = _activeRequestCacheKeyForCurrentUser();
+    if (activeRequestCacheKey == null || activeRequestCacheKey.isEmpty) {
+      return;
+    }
+    final String cachedArea =
+        (_preferences?.getString(activeRequestCacheKey) ?? '').trim();
+    if (cachedArea.isEmpty) {
+      return;
+    }
+
+    final Zone? zone = _zoneByPickupArea(cachedArea);
+    if (zone == null) {
+      _hasActiveStudentRequest = false;
+      _activeRequestArea = null;
+      _persistActiveRequestToCache();
+      return;
+    }
+
+    _hasActiveStudentRequest = true;
+    _activeRequestArea = zone.name;
+    _selectedPickupArea = zone.name;
+  }
+
+  void _ensureActiveRequestWaitingInvariant({required bool syncToRemote}) {
+    if (!_hasActiveStudentRequest || _activeRequestArea == null) {
+      return;
+    }
+
+    final Zone? zone = _zoneByPickupArea(_activeRequestArea!);
+    if (zone == null) {
+      return;
+    }
+
+    if (zone.studentsWaiting > 0) {
+      return;
+    }
+
+    _zones = _zones
+        .map(
+          (Zone item) => item.id == zone.id
+              ? item.copyWith(studentsWaiting: 1)
+              : item,
+        )
+        .toList();
+    _recomputeZoneSeverityAndSort();
+    _waitingStudents = _zones.fold<int>(
+      0,
+      (int sum, Zone item) => sum + item.studentsWaiting,
+    );
+
+    if (syncToRemote) {
+      final DateTime now = DateTime.now();
+      final bool shouldSync =
+          _lastActiveRequestReconcileAt == null ||
+          now.difference(_lastActiveRequestReconcileAt!) >=
+              const Duration(seconds: 3);
+      if (shouldSync) {
+        _lastActiveRequestReconcileAt = now;
+        _syncZoneUpdate(zone.id, <String, dynamic>{'studentsWaiting': 1});
+      }
+    }
+  }
+
+  void _persistAssignedBusesToCache() {
+    Future<void>.microtask(() async {
+      try {
+        _preferences ??= await SharedPreferences.getInstance();
+        await _preferences?.setString(
+          _assignedBusesCacheKey,
+          jsonEncode(_assignedBusesByZone),
+        );
+      } catch (_) {
+        // Best-effort local persistence only.
+      }
+    });
+  }
+
+  void _persistActiveRequestToCache() {
+    unawaited(_persistActiveRequestToCacheNow());
+  }
+
+  Future<void> _persistActiveRequestToCacheNow() async {
+    try {
+      _preferences ??= await SharedPreferences.getInstance();
+      final String? activeRequestCacheKey = _activeRequestCacheKeyForCurrentUser();
+      if (activeRequestCacheKey == null || activeRequestCacheKey.isEmpty) {
+        return;
+      }
+      final String area = (_activeRequestArea ?? '').trim();
+      if (_hasActiveStudentRequest && area.isNotEmpty) {
+        await _preferences?.setString(activeRequestCacheKey, area);
+      } else {
+        await _preferences?.remove(activeRequestCacheKey);
+      }
+    } catch (_) {
+      // Best-effort local persistence only.
+    }
+  }
+
+  String? _activeRequestCacheKeyForCurrentUser() {
+    final User? user = FirebaseAuth.instance.currentUser;
+    final String uid = (user?.uid ?? '').trim();
+    if (uid.isEmpty) {
+      return null;
+    }
+    return '$_activeRequestAreaCacheKey.$uid';
+  }
+
+  Future<void> _migrateLegacyActiveRequestCacheIfNeeded() async {
+    try {
+      final String? activeRequestCacheKey = _activeRequestCacheKeyForCurrentUser();
+      if (activeRequestCacheKey == null || activeRequestCacheKey.isEmpty) {
+        return;
+      }
+
+      final String legacyArea =
+          (_preferences?.getString(_activeRequestAreaCacheKey) ?? '').trim();
+      if (legacyArea.isEmpty) {
+        return;
+      }
+
+      final String scopedArea =
+          (_preferences?.getString(activeRequestCacheKey) ?? '').trim();
+      if (scopedArea.isEmpty) {
+        await _preferences?.setString(activeRequestCacheKey, legacyArea);
+      }
+      await _preferences?.remove(_activeRequestAreaCacheKey);
+    } catch (_) {
+      // Ignore migration failures and keep app flow running.
+    }
   }
 
   Future<void> _ensureZonesSeeded() async {
@@ -572,25 +1470,31 @@ class TransitProvider extends ChangeNotifier {
   }
 
   void _syncZoneUpdate(String zoneId, Map<String, dynamic> data) {
-    Future<void>.microtask(() async {
-      try {
-        await _firestoreDataService.updateZone(zoneId, data);
+    unawaited(_syncZoneUpdateNow(zoneId, data));
+  }
 
-        final Zone? zone = _firstWhereOrNull((Zone z) => z.id == zoneId);
-        final String? zoneName = zone?.name.trim();
-        if (zoneName != null && zoneName.isNotEmpty) {
-          await _firestoreDataService.updateZonesByName(zoneName, data);
-        }
-      } catch (e) {
-        debugPrint('Zone sync failed for $zoneId: $e');
+  Future<void> _syncZoneUpdateNow(String zoneId, Map<String, dynamic> data) async {
+    try {
+      await _firestoreDataService.updateZone(zoneId, data);
+
+      final Zone? zone = _firstWhereOrNull((Zone z) => z.id == zoneId);
+      final String? zoneName = zone?.name.trim();
+      if (zoneName != null && zoneName.isNotEmpty) {
+        await _firestoreDataService.updateZonesByName(zoneName, data);
       }
-    });
+    } catch (e) {
+      debugPrint('Zone sync failed for $zoneId: $e');
+    }
   }
 
   @override
   void dispose() {
     _zonesSubscription?.cancel();
     _zonesPollingTimer?.cancel();
+    for (final Timer timer in _departedAutoRemoveTimers.values) {
+      timer.cancel();
+    }
+    _departedAutoRemoveTimers.clear();
     super.dispose();
   }
 }

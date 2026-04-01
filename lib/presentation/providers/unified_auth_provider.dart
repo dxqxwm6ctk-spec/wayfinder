@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/config/app_env.dart';
 import '../../core/services/firebase_service.dart';
 import '../../core/services/microsoft_auth_service.dart';
@@ -40,6 +41,7 @@ class AuthResult {
 
 /// Unified authentication provider combining Firebase and Microsoft
 class UnifiedAuthProvider extends ChangeNotifier {
+  static const String _lastUserRoleKey = 'app.last_user_role';
   static final RegExp _busNumberPattern = RegExp(r'^[A-Za-z0-9-]{1,12}$');
 
   final FirebaseService _firebaseService;
@@ -60,6 +62,7 @@ class UnifiedAuthProvider extends ChangeNotifier {
   bool _isAuthStateReady = false;
   String? _authError;
   String? _microsoftRefreshToken;
+  SharedPreferences? _preferences;
 
   UnifiedAuthProvider({
     required FirebaseService firebaseService,
@@ -71,11 +74,21 @@ class UnifiedAuthProvider extends ChangeNotifier {
 
   Future<void> _bootstrap() async {
     try {
+      _preferences = await SharedPreferences.getInstance();
       await _firebaseService.initialize();
       _initializeAuthListener();
     } catch (e) {
       debugPrint('Auth bootstrap warning: $e');
     }
+  }
+
+  Future<void> _cacheLastUserRole(String role) async {
+    final String normalized = role.trim().toLowerCase();
+    if (normalized.isEmpty) {
+      return;
+    }
+    _preferences ??= await SharedPreferences.getInstance();
+    await _preferences?.setString(_lastUserRoleKey, normalized);
   }
 
   // Getters
@@ -105,6 +118,7 @@ class UnifiedAuthProvider extends ChangeNotifier {
         _currentEmail = user.email;
         _currentName = user.displayName;
         _lastAuthMethod = AuthMethod.firebase;
+        _studentRole = _preferences?.getString(_lastUserRoleKey);
         _loadUserDataFromFirestore(user.uid);
       } else {
         _clearProfileFields();
@@ -148,9 +162,15 @@ class UnifiedAuthProvider extends ChangeNotifier {
         ]);
       }
 
+      _studentRole ??= _preferences?.getString(_lastUserRoleKey);
+      if ((_studentRole ?? '').trim().isNotEmpty) {
+        await _cacheLastUserRole(_studentRole!);
+      }
+
       debugPrint('User data loaded: ${doc.data()}');
     } catch (e) {
       debugPrint('Error loading user data: $e');
+      _studentRole ??= _preferences?.getString(_lastUserRoleKey);
     } finally {
       _isProfileLoading = false;
       notifyListeners();
@@ -375,6 +395,8 @@ class UnifiedAuthProvider extends ChangeNotifier {
 
         _currentUser = _firebaseService.getCurrentUser();
         _currentEmail = _currentUser?.email;
+        _studentRole = 'student';
+        await _cacheLastUserRole('student');
         _lastAuthMethod = AuthMethod.firebase;
         
         _runPostSignInTasks(_currentUser!.uid);
@@ -507,6 +529,8 @@ class UnifiedAuthProvider extends ChangeNotifier {
       _currentUser = user;
       _currentEmail = email;
       _currentName = user.displayName;
+      _studentRole = 'student';
+      await _cacheLastUserRole('student');
       _lastAuthMethod = AuthMethod.microsoft;
       _microsoftRefreshToken = null;
 
@@ -569,6 +593,8 @@ class UnifiedAuthProvider extends ChangeNotifier {
         _currentUser = credential!.user;
         _currentEmail = _currentUser!.email;
         _currentName = _currentUser!.displayName;
+        _studentRole = 'student';
+        await _cacheLastUserRole('student');
         _lastAuthMethod = AuthMethod.firebase;
 
         await _firebaseService.saveUserData(
@@ -613,6 +639,7 @@ class UnifiedAuthProvider extends ChangeNotifier {
   Future<void> signOut() async {
     try {
       await _firebaseService.signOut();
+      await _preferences?.remove(_lastUserRoleKey);
       _currentUser = null;
       _clearProfileFields();
       _microsoftRefreshToken = null;

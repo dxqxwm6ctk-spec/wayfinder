@@ -105,6 +105,13 @@ class AppStrings {
           : 'A bus has been assigned to your area ($area): $bus';
   String get selectedArea => isArabic ? 'المنطقة' : 'Area';
   String get assignedBus => isArabic ? 'رقم الباص' : 'Bus Number';
+  String get assignedBuses => isArabic ? 'الباصات المعيّنة' : 'Assigned Buses';
+  String get additionalBusesAvailable => isArabic
+      ? 'يوجد باص إضافي لهذه المنطقة'
+      : 'Additional bus is available for this area';
+  String additionalBusesAvailableCount(int count) => isArabic
+      ? 'يوجد $count باصات إضافية لهذه المنطقة'
+      : '$count additional buses are available for this area';
   String get noBusAssigned => isArabic ? 'لا يوجد باص مخصص' : 'No bus assigned';
   String requestConfirmedFor(String area) => isArabic
       ? 'تم تأكيد الرحلة لمنطقة $area'
@@ -165,8 +172,26 @@ class AppStrings {
           isArabic ? 'تم خصم $count من انتظار $zoneName' : '$count removed from $zoneName waiting queue.';
   String get enterBus => isArabic ? 'أدخل رقم الباص' : 'Enter Bus #';
   String get assign => isArabic ? 'تعيين' : 'ASSIGN';
+    String get addBus => isArabic ? 'إضافة باص' : 'Add Bus';
+    String get clearRequests => isArabic ? 'حذف الطلبات' : 'Clear Requests';
+        String get clearAllRequests => isArabic ? 'حذف كل الطلاب المنتظرين' : 'Clear All Waiting Students';
+        String get noStudentsCurrently => isArabic ? 'لا يوجد طلاب حالياً.' : 'No students currently.';
+        String get clearAllRequestsConfirmTitle => isArabic
+            ? 'تأكيد حذف كل الطلاب المنتظرين'
+            : 'Confirm Clearing All Waiting Students';
+        String get clearAllRequestsConfirmMessage => isArabic
+            ? 'سيتم حذف جميع الطلاب المنتظرين في كل المناطق. هل تريد المتابعة؟'
+            : 'This will clear all waiting students in all zones. Do you want to continue?';
+    String requestsCleared(String zoneName, int count) => isArabic
+            ? 'تم حذف $count طلب من منطقة $zoneName'
+            : 'Cleared $count requests from $zoneName.';
+        String allRequestsCleared(int count) => isArabic
+            ? 'تم حذف $count طلب من كل المناطق'
+            : 'Cleared $count requests from all zones.';
   String get busRequired =>
       isArabic ? 'رقم الحافلة مطلوب.' : 'Bus number is required.';
+    String get busCannotStartWithZero =>
+            isArabic ? 'رقم الباص لا يمكن أن يبدأ بصفر.' : 'Bus number cannot start with 0.';
 
   String get profileTitle => isArabic ? 'الملف الشخصي' : 'Profile';
   String get profileSubtitle =>
