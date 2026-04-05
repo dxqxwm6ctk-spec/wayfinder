@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 
 import '../localization/app_strings.dart';
@@ -9,6 +10,7 @@ import '../theme/app_theme.dart';
 import 'profile_screen.dart';
 import 'request_ride_screen.dart';
 import 'status_screen.dart';
+import 'web_dashboard_screen.dart';
 
 class MainShellScreen extends StatefulWidget {
   const MainShellScreen({super.key});
@@ -18,11 +20,18 @@ class MainShellScreen extends StatefulWidget {
 }
 
 class _MainShellScreenState extends State<MainShellScreen> {
-  final List<Widget> _pages = const <Widget>[
-    RequestRideScreen(),
-    StatusScreen(),
-    ProfileScreen(),
-  ];
+  List<Widget> get _pages {
+    if (kIsWeb) {
+      return const <Widget>[
+        WebDashboardScreen(),
+        RequestRideScreen(),
+        StatusScreen(),
+        ProfileScreen(),
+      ];
+    }
+
+    return const <Widget>[RequestRideScreen(), StatusScreen(), ProfileScreen()];
+  }
 
   @override
   void initState() {
@@ -79,38 +88,67 @@ class _MainShellScreenState extends State<MainShellScreen> {
               indicatorColor: isDark
                   ? AppColors.accent.withValues(alpha: 0.24)
                   : AppColors.accent.withValues(alpha: 0.14),
-              labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>(
-                (Set<WidgetState> states) {
-                  final bool selected = states.contains(WidgetState.selected);
-                  return Theme.of(context).textTheme.labelMedium!.copyWith(
-                    color: selected
-                        ? (isDark ? AppColors.accentLight : AppColors.accent)
-                        : (isDark ? AppColors.textMuted : const Color(0xFF6D7B94)),
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                  );
-                },
-              ),
+              labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>((
+                Set<WidgetState> states,
+              ) {
+                final bool selected = states.contains(WidgetState.selected);
+                return Theme.of(context).textTheme.labelMedium!.copyWith(
+                  color: selected
+                      ? (isDark ? AppColors.accentLight : AppColors.accent)
+                      : (isDark
+                            ? AppColors.textMuted
+                            : const Color(0xFF6D7B94)),
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                );
+              }),
             ),
             child: NavigationBar(
               selectedIndex: navigation.currentIndex,
-              onDestinationSelected: navigation.setIndex,
-              destinations: <NavigationDestination>[
-                NavigationDestination(
-                  icon: const Icon(Icons.route_outlined),
-                  selectedIcon: const Icon(Icons.route),
-                  label: strings.requestTab,
-                ),
-                NavigationDestination(
-                  icon: const Icon(Icons.directions_bus_filled_outlined),
-                  selectedIcon: const Icon(Icons.directions_bus_filled),
-                  label: strings.statusTab,
-                ),
-                NavigationDestination(
-                  icon: const Icon(Icons.person_outline_rounded),
-                  selectedIcon: const Icon(Icons.person_rounded),
-                  label: strings.profileTab,
-                ),
-              ],
+              onDestinationSelected: (int value) {
+                if (value < _pages.length) {
+                  navigation.setIndex(value);
+                }
+              },
+              destinations: kIsWeb
+                  ? <NavigationDestination>[
+                      NavigationDestination(
+                        icon: const Icon(Icons.grid_view_outlined),
+                        selectedIcon: const Icon(Icons.grid_view_rounded),
+                        label: settings.isArabic ? 'لوحة' : 'DASHBOARD',
+                      ),
+                      NavigationDestination(
+                        icon: const Icon(Icons.route_outlined),
+                        selectedIcon: const Icon(Icons.route),
+                        label: strings.requestTab,
+                      ),
+                      NavigationDestination(
+                        icon: const Icon(Icons.directions_bus_filled_outlined),
+                        selectedIcon: const Icon(Icons.directions_bus_filled),
+                        label: strings.statusTab,
+                      ),
+                      NavigationDestination(
+                        icon: const Icon(Icons.person_outline_rounded),
+                        selectedIcon: const Icon(Icons.person_rounded),
+                        label: strings.profileTab,
+                      ),
+                    ]
+                  : <NavigationDestination>[
+                      NavigationDestination(
+                        icon: const Icon(Icons.route_outlined),
+                        selectedIcon: const Icon(Icons.route),
+                        label: strings.requestTab,
+                      ),
+                      NavigationDestination(
+                        icon: const Icon(Icons.directions_bus_filled_outlined),
+                        selectedIcon: const Icon(Icons.directions_bus_filled),
+                        label: strings.statusTab,
+                      ),
+                      NavigationDestination(
+                        icon: const Icon(Icons.person_outline_rounded),
+                        selectedIcon: const Icon(Icons.person_rounded),
+                        label: strings.profileTab,
+                      ),
+                    ],
             ),
           ),
         ),

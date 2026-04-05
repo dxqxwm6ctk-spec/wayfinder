@@ -33,6 +33,27 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+  <div id="file-open-warning" style="display:none;max-width:760px;margin:40px auto;padding:20px;border:1px solid #d7dfed;border-radius:12px;background:#f7fbff;color:#142033;font-family:Segoe UI,Arial,sans-serif;line-height:1.5;">
+    <h2 style="margin:0 0 8px;font-size:20px;">Wayfinder Web</h2>
+    <p style="margin:0 0 10px;">This file was opened directly from disk (file://), so Flutter Web cannot start from the source web folder.</p>
+    <p style="margin:0;">Use <strong>flutter run -d chrome</strong> for development, or open the built output from <strong>build/web</strong> through a web server.</p>
+  </div>
+
+  <script>
+    (function () {
+      if (window.location.protocol === 'file:') {
+        var warning = document.getElementById('file-open-warning');
+        if (warning) {
+          warning.style.display = 'block';
+        }
+        return;
+      }
+
+      var script = document.createElement('script');
+      script.src = 'flutter_bootstrap.js';
+      script.async = true;
+      document.body.appendChild(script);
+    })();
+  </script>
 </body>
 </html>

@@ -52,7 +52,35 @@ class FirebaseService {
 
     try {
       if (Firebase.apps.isEmpty) {
-        await Firebase.initializeApp();
+        if (kIsWeb) {
+          if (!AppEnv.hasFirebaseWebConfig) {
+            debugPrint(
+              'Firebase Web config is missing. '
+              'Skipping Firebase init so web UI can still run.',
+            );
+            return;
+          }
+
+          await Firebase.initializeApp(
+            options: FirebaseOptions(
+              apiKey: AppEnv.firebaseWebApiKey,
+              appId: AppEnv.firebaseWebAppId,
+              messagingSenderId: AppEnv.firebaseWebMessagingSenderId,
+              projectId: AppEnv.firebaseWebProjectId,
+              authDomain: AppEnv.firebaseWebAuthDomain.trim().isEmpty
+                  ? null
+                  : AppEnv.firebaseWebAuthDomain,
+              storageBucket: AppEnv.firebaseWebStorageBucket.trim().isEmpty
+                  ? null
+                  : AppEnv.firebaseWebStorageBucket,
+              measurementId: AppEnv.firebaseWebMeasurementId.trim().isEmpty
+                  ? null
+                  : AppEnv.firebaseWebMeasurementId,
+            ),
+          );
+        } else {
+          await Firebase.initializeApp();
+        }
       }
 
       final FirebaseApp app = Firebase.app();
@@ -66,9 +94,7 @@ class FirebaseService {
       // Core services: required for auth and firestore.
       _auth = FirebaseAuth.instance;
       _firestore = FirebaseFirestore.instance;
-      _firestore!.settings = const Settings(
-        persistenceEnabled: false,
-      );
+      _firestore!.settings = const Settings(persistenceEnabled: false);
 
       // Messaging setup is optional; failures here must not break auth.
       try {
@@ -83,7 +109,9 @@ class FirebaseService {
           sound: true,
         );
 
-        debugPrint('User notification preference: ${settings.authorizationStatus}');
+        debugPrint(
+          'User notification preference: ${settings.authorizationStatus}',
+        );
 
         String? token = await _messaging!.getToken();
         debugPrint('FCM Token: $token');
@@ -99,6 +127,12 @@ class FirebaseService {
   Future<void> _ensureInitialized() async {
     if (!isInitialized) {
       await initialize();
+      if (!isInitialized) {
+        throw StateError(
+          'Firebase is not initialized. On web, pass FIREBASE_WEB_* '
+          'dart-defines before using auth features.',
+        );
+      }
     }
   }
 
@@ -219,10 +253,7 @@ class FirebaseService {
       await _ensureInitialized();
       final OAuthCredential credential = OAuthProvider(
         'microsoft.com',
-      ).credential(
-        accessToken: accessToken,
-        idToken: idToken,
-      );
+      ).credential(accessToken: accessToken, idToken: idToken);
       return await auth.signInWithCredential(credential);
     } catch (e) {
       debugPrint('Microsoft token signin error: $e');
@@ -257,7 +288,10 @@ class FirebaseService {
   Future<void> saveUserData(String uid, Map<String, dynamic> userData) async {
     try {
       await _ensureInitialized();
-      await firestore.collection('users').doc(uid).set(userData, SetOptions(merge: true));
+      await firestore
+          .collection('users')
+          .doc(uid)
+          .set(userData, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Save user data error: $e');
       rethrow;

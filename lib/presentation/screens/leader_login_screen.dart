@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 
 import '../localization/app_strings.dart';
@@ -8,6 +9,7 @@ import '../theme/app_theme.dart';
 import '../widgets/app_shell_background.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_input.dart';
+import 'leader_web_screen.dart';
 import 'leader_shell_screen.dart';
 
 class LeaderLoginScreen extends StatefulWidget {
@@ -48,14 +50,17 @@ class _LeaderLoginScreenState extends State<LeaderLoginScreen> {
     }
 
     if (!ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(strings.leaderInvalidCredentials)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(strings.leaderInvalidCredentials)));
       return;
     }
 
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => const LeaderShellScreen()),
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            kIsWeb ? const LeaderWebScreen() : const LeaderShellScreen(),
+      ),
     );
   }
 
@@ -88,8 +93,8 @@ class _LeaderLoginScreenState extends State<LeaderLoginScreen> {
                 Text(
                   strings.leaderEmail,
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: AppColors.accentLight,
-                      ),
+                    color: AppColors.accentLight,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 CustomInput(
@@ -108,8 +113,8 @@ class _LeaderLoginScreenState extends State<LeaderLoginScreen> {
                 Text(
                   strings.password,
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: AppColors.accentLight,
-                      ),
+                    color: AppColors.accentLight,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 CustomInput(

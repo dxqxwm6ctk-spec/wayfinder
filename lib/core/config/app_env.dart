@@ -40,6 +40,49 @@ class AppEnv {
     defaultValue: 'https://wayfinder-284c0.firebaseapp.com',
   );
 
+  // Optional Firebase Web config injected via --dart-define.
+  static const String firebaseWebApiKey = String.fromEnvironment(
+    'FIREBASE_WEB_API_KEY',
+    defaultValue: '',
+  );
+
+  static const String firebaseWebAppId = String.fromEnvironment(
+    'FIREBASE_WEB_APP_ID',
+    defaultValue: '',
+  );
+
+  static const String firebaseWebMessagingSenderId = String.fromEnvironment(
+    'FIREBASE_WEB_MESSAGING_SENDER_ID',
+    defaultValue: '',
+  );
+
+  static const String firebaseWebProjectId = String.fromEnvironment(
+    'FIREBASE_WEB_PROJECT_ID',
+    defaultValue: '',
+  );
+
+  static const String firebaseWebAuthDomain = String.fromEnvironment(
+    'FIREBASE_WEB_AUTH_DOMAIN',
+    defaultValue: '',
+  );
+
+  static const String firebaseWebStorageBucket = String.fromEnvironment(
+    'FIREBASE_WEB_STORAGE_BUCKET',
+    defaultValue: '',
+  );
+
+  static const String firebaseWebMeasurementId = String.fromEnvironment(
+    'FIREBASE_WEB_MEASUREMENT_ID',
+    defaultValue: '',
+  );
+
+  static bool get hasFirebaseWebConfig {
+    return firebaseWebApiKey.trim().isNotEmpty &&
+        firebaseWebAppId.trim().isNotEmpty &&
+        firebaseWebMessagingSenderId.trim().isNotEmpty &&
+        firebaseWebProjectId.trim().isNotEmpty;
+  }
+
   static bool get canUseRemote => !useMock && apiBaseUrl.trim().isNotEmpty;
 
   static bool get canUseMicrosoftAuth {

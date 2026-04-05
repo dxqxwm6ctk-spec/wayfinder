@@ -12,27 +12,30 @@ class AppStrings {
   String get roleSelectionSubtitle => isArabic
       ? 'ادخل كطالب أو كقائد أسطول.'
       : 'Sign in as a student or fleet leader.';
-  String get continueAsStudent => isArabic ? 'الدخول كطالب' : 'Continue As Student';
-  String get continueAsLeader => isArabic ? 'الدخول كقائد' : 'Continue As Leader';
+  String get continueAsStudent =>
+      isArabic ? 'الدخول كطالب' : 'Continue As Student';
+  String get continueAsLeader =>
+      isArabic ? 'الدخول كقائد' : 'Continue As Leader';
   String get back => isArabic ? 'رجوع' : 'Back';
   String get leaderLogin => isArabic ? 'تسجيل دخول القائد' : 'Leader Login';
-    String get leaderSignOut => isArabic ? 'تسجيل خروج' : 'Sign Out';
-    String get leaderSignedOut => isArabic ? 'تم تسجيل خروج القائد.' : 'Leader signed out successfully.';
+  String get leaderSignOut => isArabic ? 'تسجيل خروج' : 'Sign Out';
+  String get leaderSignedOut =>
+      isArabic ? 'تم تسجيل خروج القائد.' : 'Leader signed out successfully.';
   String get leaderEmail => isArabic ? 'البريد الوظيفي' : 'LEADER EMAIL';
   String get leaderEmailHint =>
       isArabic ? 'leader@university.edu' : 'leader@university.edu';
   String get leaderPasswordHint =>
       isArabic ? 'أدخل كلمة مرور القائد' : 'Enter leader password';
-  String get leaderInvalidCredentials => isArabic
-      ? 'بيانات القائد غير صحيحة.'
-      : 'Invalid leader credentials.';
+  String get leaderInvalidCredentials =>
+      isArabic ? 'بيانات القائد غير صحيحة.' : 'Invalid leader credentials.';
   String get useLeaderTestUser =>
       isArabic ? 'استخدم حساب قائد تجريبي' : 'USE LEADER TEST USER';
-  String get leaderPanelTitle =>
-      isArabic ? 'لوحة القائد' : 'Leader Control';
+  String get leaderPanelTitle => isArabic ? 'لوحة القائد' : 'Leader Control';
   String get leaderPanelSubtitle => isArabic
       ? 'تعيين أرقام الباصات للمناطق.'
       : 'Assign buses to campus zones.';
+  String get refresh => isArabic ? 'تحديث' : 'Refresh';
+  String get activeZones => isArabic ? 'المناطق النشطة' : 'Active Zones';
   String get universityEmail =>
       isArabic ? 'البريد الجامعي' : 'UNIVERSITY EMAIL';
   String get emailHint =>
@@ -48,8 +51,8 @@ class AppStrings {
       isArabic ? 'اتصال الحرم' : 'Campus Connectivity';
   String get uptime => isArabic ? 'جاهزية 98%' : '98% Uptime';
   String get testUser => isArabic ? 'استخدم حساب تجريبي' : 'USE TEST USER';
-    String get languageEnglish => isArabic ? 'الإنجليزية' : 'English';
-    String get languageArabic => isArabic ? 'العربية' : 'العربية';
+  String get languageEnglish => isArabic ? 'الإنجليزية' : 'English';
+  String get languageArabic => isArabic ? 'العربية' : 'العربية';
   String get invalidCredentials => isArabic
       ? 'بيانات الجامعة غير صحيحة.'
       : 'Invalid university credentials.';
@@ -70,7 +73,8 @@ class AppStrings {
   String get immediatePickup => isArabic ? 'استلام فوري' : 'Immediate Pickup';
   String get priorityDispatch =>
       isArabic ? 'أولوية الإرسال' : 'PRIORITY DISPATCH';
-  String get pickupArea => isArabic ? 'اختر منطقة الانطلاق' : 'SELECT PICK-UP AREA';
+  String get pickupArea =>
+      isArabic ? 'اختر منطقة الانطلاق' : 'SELECT PICK-UP AREA';
   String get requestAreaRequired => isArabic
       ? 'اختر منطقة الانطلاق أولاً.'
       : 'Please select a pick-up area first.';
@@ -78,8 +82,7 @@ class AppStrings {
       isArabic ? 'المنتظرون حاليًا' : 'Currently Waiting';
   String get students => isArabic ? 'طالب' : 'Students';
   String get fleetStatus => isArabic ? 'حالة الأسطول' : 'Fleet Status';
-  String get confirmRequest =>
-      isArabic ? 'تأكيد الطلب' : 'CONFIRM REQUEST';
+  String get confirmRequest => isArabic ? 'تأكيد الطلب' : 'CONFIRM REQUEST';
   String get executeRequest => isArabic ? 'تنفيذ الطلب' : 'EXECUTE REQUEST';
   String get cancelRequest => isArabic ? 'إلغاء الرحلة' : 'Cancel Ride';
   String get noActiveRequest => isArabic
@@ -89,9 +92,12 @@ class AppStrings {
       ? 'الباص انطلق لمنطقتك، إذا طلعت اضغط طلعت.'
       : 'Your bus has departed. If you boarded, tap I Boarded.';
   String get iBoarded => isArabic ? 'طلعت' : 'I Boarded';
-  String get boardedConfirmed => isArabic
-      ? 'تم تأكيد صعودك، بالتوفيق.'
-      : 'Boarding confirmed.';
+  String get iDidNotBoard => isArabic ? 'ما طلعت' : 'I Did Not Board';
+  String get boardedConfirmed =>
+      isArabic ? 'تم تأكيد صعودك، بالتوفيق.' : 'Boarding confirmed.';
+  String get keptInWaitingList => isArabic
+      ? 'تم إبقاؤك ضمن المنتظرون حالياً.'
+      : 'You are still in the currently waiting list.';
   String get boardingNotAvailable => isArabic
       ? 'لا يمكن تأكيد الصعود حالياً.'
       : 'Cannot confirm boarding right now.';
@@ -100,12 +106,12 @@ class AppStrings {
       : 'Turn on immediate pickup to select area and execute request.';
   String get requestSummaryTitle =>
       isArabic ? 'تفاصيل التنفيذ' : 'Execution Summary';
-    String requestCancelledFor(String area) => isArabic
-        ? 'تم إلغاء الرحلة لمنطقة $area'
-        : 'Ride request cancelled for $area';
-      String busAssignedToYourArea(String area, String bus) => isArabic
-          ? 'تم وضع باص لمنطقتك ($area) رقم $bus'
-          : 'A bus has been assigned to your area ($area): $bus';
+  String requestCancelledFor(String area) => isArabic
+      ? 'تم إلغاء الرحلة لمنطقة $area'
+      : 'Ride request cancelled for $area';
+  String busAssignedToYourArea(String area, String bus) => isArabic
+      ? 'تم وضع باص لمنطقتك ($area) رقم $bus'
+      : 'A bus has been assigned to your area ($area): $bus';
   String get selectedArea => isArabic ? 'المنطقة' : 'Area';
   String get assignedBus => isArabic ? 'رقم الباص' : 'Bus Number';
   String get assignedBuses => isArabic ? 'الباصات المعيّنة' : 'Assigned Buses';
@@ -126,28 +132,42 @@ class AppStrings {
   String get profileTab => isArabic ? 'الملف' : 'PROFILE';
 
   String get transitStatusTitle => isArabic ? 'حالة\nالنقل' : 'Transit\nStatus';
-  String get transitStatusSubtitle =>
-      isArabic ? 'تشغيل حي عبر الحرم الجامعي.' : 'Live operations across your campus.';
+  String get transitStatusSubtitle => isArabic
+      ? 'تشغيل حي عبر الحرم الجامعي.'
+      : 'Live operations across your campus.';
   String get yourRideStatus => isArabic ? 'حالة طلبك' : 'Your Ride Status';
-  String get activeRide => isArabic ? 'لديك طلب نشط' : 'You have an active request';
+  String get activeRide =>
+      isArabic ? 'لديك طلب نشط' : 'You have an active request';
   String get noActiveRide => isArabic ? 'لا يوجد طلب نشط' : 'No active request';
-  String get yourCurrentArea => isArabic ? 'منطقتك الحالية' : 'Your Current Area';
-  String get busAssignedToArea => isArabic ? 'تم تخصيص باص لمنطقتك' : 'Bus assigned to your area';
-  String get noBusAssignedToArea => isArabic ? 'لم يتم تخصيص باص لمنطقتك بعد' : 'No bus assigned to your area yet';
-  String get estimatedArrival => isArabic ? 'وقت الوصول التقديري' : 'Estimated Arrival';
-  String etaMinutes(int minutes) => isArabic ? '$minutes دقيقة' : '$minutes min';
-  String get etaUnavailable => isArabic ? 'غير متاح حالياً' : 'Not available yet';
-  String get busAssignedAlert => isArabic ? 'تم وضع باص لمنطقتك' : 'A bus has been assigned to your area';
+  String get yourCurrentArea =>
+      isArabic ? 'منطقتك الحالية' : 'Your Current Area';
+  String get busAssignedToArea =>
+      isArabic ? 'تم تخصيص باص لمنطقتك' : 'Bus assigned to your area';
+  String get noBusAssignedToArea => isArabic
+      ? 'لم يتم تخصيص باص لمنطقتك بعد'
+      : 'No bus assigned to your area yet';
+  String get estimatedArrival =>
+      isArabic ? 'وقت الوصول التقديري' : 'Estimated Arrival';
+  String etaMinutes(int minutes) =>
+      isArabic ? '$minutes دقيقة' : '$minutes min';
+  String get etaUnavailable =>
+      isArabic ? 'غير متاح حالياً' : 'Not available yet';
+  String get busAssignedAlert =>
+      isArabic ? 'تم وضع باص لمنطقتك' : 'A bus has been assigned to your area';
   String get lastUpdated => isArabic ? 'آخر تحديث' : 'Last Updated';
-  String minutesAgo(int minutes) => isArabic ? 'قبل $minutes دقيقة' : '$minutes min ago';
+  String minutesAgo(int minutes) =>
+      isArabic ? 'قبل $minutes دقيقة' : '$minutes min ago';
   String get justNow => isArabic ? 'الآن' : 'Just now';
   String get queueLoad => isArabic ? 'ضغط الطابور' : 'Queue Load';
+  String get available => isArabic ? 'متاح' : 'AVAILABLE';
+  String get studentFallback => isArabic ? 'طالب' : 'Student';
   String studentsWaitingCount(int count) =>
       isArabic ? '$count طالب بانتظار الحافلة' : '$count Students Waiting';
 
   String get academicWayfinder =>
       isArabic ? 'وايفندر الأكاديمي' : 'ACADEMIC WAYFINDER';
-  String get fleetCommandTitle => isArabic ? 'قيادة\nالأسطول' : 'Fleet\nCommand';
+  String get fleetCommandTitle =>
+      isArabic ? 'قيادة\nالأسطول' : 'Fleet\nCommand';
   String get fleetCommandSubtitle =>
       isArabic ? 'تخصيص ديناميكي للمناطق.' : 'Dynamic zone allocation.';
   String get campusLoadingZones =>
@@ -158,119 +178,129 @@ class AppStrings {
   String get moderate => isArabic ? 'متوسط' : 'MODERATE';
   String get stable => isArabic ? 'مستقر' : 'STABLE';
   String get remove => isArabic ? 'إزالة' : 'REMOVE';
-    String get markDeparted => isArabic ? 'طلع' : 'Departed';
-    String get departed => isArabic ? 'انطلق' : 'Departed';
-    String busMarkedDeparted(String bus) =>
-            isArabic ? 'تم تسجيل انطلاق الباص $bus' : 'Bus $bus marked as departed.';
-      String get markStudentBoarded => isArabic ? 'خصم عدد' : 'Decrement Count';
-      String get enterBoardedCount => isArabic ? 'أدخل عدد الصاعدين' : 'Enter boarded count';
-      String get boardedCountRequired => isArabic ? 'أدخل رقم صحيح أكبر من صفر.' : 'Enter a valid number greater than zero.';
-      String get boardedCountHint => isArabic ? 'مثل: 3' : 'Ex: 3';
-      String get confirm => isArabic ? 'تأكيد' : 'Confirm';
-    String get boardedCountLabel => isArabic ? 'صعدوا' : 'Boarded';
-            String boardedCountExceedsAvailable(int available) => isArabic
-                    ? 'العدد المدخل أكبر من الموجود. المتاح حالياً: $available طالب.'
-                    : 'Entered count is greater than available. Currently available: $available students.';
-      String studentsMarkedBoarded(String zoneName, int count) =>
-          isArabic ? 'تم خصم $count من انتظار $zoneName' : '$count removed from $zoneName waiting queue.';
+  String get markDeparted => isArabic ? 'طلع' : 'Departed';
+  String get departed => isArabic ? 'انطلق' : 'Departed';
+  String busMarkedDeparted(String bus) =>
+      isArabic ? 'تم تسجيل انطلاق الباص $bus' : 'Bus $bus marked as departed.';
+  String get markStudentBoarded => isArabic ? 'خصم عدد' : 'Decrement Count';
+  String get enterBoardedCount =>
+      isArabic ? 'أدخل عدد الصاعدين' : 'Enter boarded count';
+  String get boardedCountRequired => isArabic
+      ? 'أدخل رقم صحيح أكبر من صفر.'
+      : 'Enter a valid number greater than zero.';
+  String get boardedCountHint => isArabic ? 'مثل: 3' : 'Ex: 3';
+  String get confirm => isArabic ? 'تأكيد' : 'Confirm';
+  String get boardedCountLabel => isArabic ? 'صعدوا' : 'Boarded';
+  String boardedCountExceedsAvailable(int available) => isArabic
+      ? 'العدد المدخل أكبر من الموجود. المتاح حالياً: $available طالب.'
+      : 'Entered count is greater than available. Currently available: $available students.';
+  String studentsMarkedBoarded(String zoneName, int count) => isArabic
+      ? 'تم خصم $count من انتظار $zoneName'
+      : '$count removed from $zoneName waiting queue.';
   String get enterBus => isArabic ? 'أدخل رقم الباص' : 'Enter Bus #';
   String get assign => isArabic ? 'تعيين' : 'ASSIGN';
-    String get addBus => isArabic ? 'إضافة باص' : 'Add Bus';
-    String get clearRequests => isArabic ? 'حذف الطلبات' : 'Clear Requests';
-        String get clearAllRequests => isArabic ? 'حذف كل الطلاب المنتظرين' : 'Clear All Waiting Students';
-        String get noStudentsCurrently => isArabic ? 'لا يوجد طلاب حالياً.' : 'No students currently.';
-        String get clearAllRequestsConfirmTitle => isArabic
-            ? 'تأكيد حذف كل الطلاب المنتظرين'
-            : 'Confirm Clearing All Waiting Students';
-        String get clearAllRequestsConfirmMessage => isArabic
-            ? 'سيتم حذف جميع الطلاب المنتظرين في كل المناطق. هل تريد المتابعة؟'
-            : 'This will clear all waiting students in all zones. Do you want to continue?';
-    String requestsCleared(String zoneName, int count) => isArabic
-            ? 'تم حذف $count طلب من منطقة $zoneName'
-            : 'Cleared $count requests from $zoneName.';
-        String allRequestsCleared(int count) => isArabic
-            ? 'تم حذف $count طلب من كل المناطق'
-            : 'Cleared $count requests from all zones.';
+  String get addBus => isArabic ? 'إضافة باص' : 'Add Bus';
+  String get clearRequests => isArabic ? 'حذف الطلبات' : 'Clear Requests';
+  String get clearAllRequests =>
+      isArabic ? 'حذف كل الطلاب المنتظرين' : 'Clear All Waiting Students';
+  String get noStudentsCurrently =>
+      isArabic ? 'لا يوجد طلاب حالياً.' : 'No students currently.';
+  String get clearAllRequestsConfirmTitle => isArabic
+      ? 'تأكيد حذف كل الطلاب المنتظرين'
+      : 'Confirm Clearing All Waiting Students';
+  String get clearAllRequestsConfirmMessage => isArabic
+      ? 'سيتم حذف جميع الطلاب المنتظرين في كل المناطق. هل تريد المتابعة؟'
+      : 'This will clear all waiting students in all zones. Do you want to continue?';
+  String requestsCleared(String zoneName, int count) => isArabic
+      ? 'تم حذف $count طلب من منطقة $zoneName'
+      : 'Cleared $count requests from $zoneName.';
+  String allRequestsCleared(int count) => isArabic
+      ? 'تم حذف $count طلب من كل المناطق'
+      : 'Cleared $count requests from all zones.';
   String get busRequired =>
       isArabic ? 'رقم الحافلة مطلوب.' : 'Bus number is required.';
-    String get busCannotStartWithZero =>
-            isArabic ? 'رقم الباص لا يمكن أن يبدأ بصفر.' : 'Bus number cannot start with 0.';
+  String get busCannotStartWithZero => isArabic
+      ? 'رقم الباص لا يمكن أن يبدأ بصفر.'
+      : 'Bus number cannot start with 0.';
 
   String get profileTitle => isArabic ? 'الملف الشخصي' : 'Profile';
-  String get profileSubtitle =>
-      isArabic ? 'حساب الطالب وتفضيلات الرحلات.' : 'Student account and ride preferences.';
-  String get defaultPickup =>
-            isArabic
-                    ? 'نقطة الانطلاق الافتراضية: ${localizePickupArea('North Campus (Library Hub)')}'
-                    : 'Default Pickup: North Campus (Library Hub)';
+  String get profileSubtitle => isArabic
+      ? 'حساب الطالب وتفضيلات الرحلات.'
+      : 'Student account and ride preferences.';
+  String get defaultPickup => isArabic
+      ? 'نقطة الانطلاق الافتراضية: ${localizePickupArea('North Campus (Library Hub)')}'
+      : 'Default Pickup: North Campus (Library Hub)';
 
-    String localizePickupArea(String area) {
-        if (!isArabic) {
-            return area;
-        }
-
-        switch (area) {
-            case 'North Campus (Library Hub)':
-                return 'الحرم الشمالي (مركز المكتبة)';
-            case 'STEM Plaza':
-                return 'ساحة STEM';
-            case 'South Terminal':
-                return 'المحطة الجنوبية';
-            case 'Housing Complex':
-                return 'مجمع السكن';
-            default:
-                return area;
-        }
+  String localizePickupArea(String area) {
+    if (!isArabic) {
+      return area;
     }
 
-    String localizeZoneName(String name) {
-        if (!isArabic) {
-            return name;
-        }
+    switch (area) {
+      case 'North Campus (Library Hub)':
+        return 'الحرم الشمالي (مركز المكتبة)';
+      case 'STEM Plaza':
+        return 'ساحة STEM';
+      case 'South Terminal':
+        return 'المحطة الجنوبية';
+      case 'Housing Complex':
+        return 'مجمع السكن';
+      default:
+        return area;
+    }
+  }
 
-        switch (name) {
-            case 'North Campus':
-                return 'الحرم الشمالي';
-            case 'STEM Plaza':
-                return 'ساحة STEM';
-            case 'South Terminal':
-                return 'المحطة الجنوبية';
-            case 'Housing Complex':
-                return 'مجمع السكن';
-            default:
-                return name;
-        }
+  String localizeZoneName(String name) {
+    if (!isArabic) {
+      return name;
     }
 
-    String localizeSystemStatus(String status) {
-        if (!isArabic) {
-            return status;
-        }
-        if (status.toLowerCase() == 'system live') {
-            return 'النظام يعمل';
-        }
-        return status;
+    switch (name) {
+      case 'North Campus':
+        return 'الحرم الشمالي';
+      case 'STEM Plaza':
+        return 'ساحة STEM';
+      case 'South Terminal':
+        return 'المحطة الجنوبية';
+      case 'Housing Complex':
+        return 'مجمع السكن';
+      default:
+        return name;
     }
+  }
 
-    String localizeCampusConnectivity(String text) {
-        if (!isArabic) {
-            return text;
-        }
-        if (text.toLowerCase() == '98% uptime') {
-            return 'جاهزية 98%';
-        }
-        return text;
+  String localizeSystemStatus(String status) {
+    if (!isArabic) {
+      return status;
     }
+    if (status.toLowerCase() == 'system live') {
+      return 'النظام يعمل';
+    }
+    return status;
+  }
 
-    String localizeFleetStatus(String text) {
-        if (!isArabic) {
-            return text;
-        }
-        final RegExp busStatus = RegExp(r'^BUS\s*#?\s*([A-Za-z0-9]+)\s+READY$', caseSensitive: false);
-        final RegExpMatch? match = busStatus.firstMatch(text.trim());
-        if (match != null) {
-            return 'الحافلة #${match.group(1)} جاهزة';
-        }
-        return text;
+  String localizeCampusConnectivity(String text) {
+    if (!isArabic) {
+      return text;
     }
+    if (text.toLowerCase() == '98% uptime') {
+      return 'جاهزية 98%';
+    }
+    return text;
+  }
+
+  String localizeFleetStatus(String text) {
+    if (!isArabic) {
+      return text;
+    }
+    final RegExp busStatus = RegExp(
+      r'^BUS\s*#?\s*([A-Za-z0-9]+)\s+READY$',
+      caseSensitive: false,
+    );
+    final RegExpMatch? match = busStatus.firstMatch(text.trim());
+    if (match != null) {
+      return 'الحافلة #${match.group(1)} جاهزة';
+    }
+    return text;
+  }
 }

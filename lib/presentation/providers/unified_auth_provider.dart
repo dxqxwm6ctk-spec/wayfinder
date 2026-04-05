@@ -69,8 +69,8 @@ class UnifiedAuthProvider extends ChangeNotifier {
   UnifiedAuthProvider({
     required FirebaseService firebaseService,
     required MicrosoftAuthService microsoftAuthService,
-  })  : _firebaseService = firebaseService,
-        _microsoftAuthService = microsoftAuthService {
+  }) : _firebaseService = firebaseService,
+       _microsoftAuthService = microsoftAuthService {
     _bootstrap();
   }
 
@@ -78,9 +78,17 @@ class UnifiedAuthProvider extends ChangeNotifier {
     try {
       _preferences = await SharedPreferences.getInstance();
       await _firebaseService.initialize();
-      _initializeAuthListener();
+      if (_firebaseService.isInitialized) {
+        _initializeAuthListener();
+      } else {
+        _isAuthStateReady = true;
+        notifyListeners();
+      }
     } catch (e) {
       debugPrint('Auth bootstrap warning: $e');
+      // Keep the app usable even if Firebase is not configured for this platform.
+      _isAuthStateReady = true;
+      notifyListeners();
     }
   }
 
@@ -144,26 +152,40 @@ class UnifiedAuthProvider extends ChangeNotifier {
       if (doc.exists) {
         final data = doc.data() as Map<String, dynamic>? ?? <String, dynamic>{};
 
-        _currentName = _readStringValue(data, <String>[
+        _currentName =
+            _readStringValue(data, <String>[
               'name',
               'fullName',
               'displayName',
             ]) ??
             _currentName;
-        _currentPhotoUrl = _readStringValue(data, <String>[
+        _currentPhotoUrl =
+            _readStringValue(data, <String>[
               'photoUrl',
               'photoURL',
               'avatarUrl',
               'profileImageUrl',
-            'picture',
-            'imageUrl',
+              'picture',
+              'imageUrl',
             ]) ??
             _currentPhotoUrl;
-        _currentEmail = _readStringValue(data, <String>['email']) ?? _currentEmail;
-        _studentId = _readStringValue(data, <String>['studentId', 'universityId', 'id']);
+        _currentEmail =
+            _readStringValue(data, <String>['email']) ?? _currentEmail;
+        _studentId = _readStringValue(data, <String>[
+          'studentId',
+          'universityId',
+          'id',
+        ]);
         _studentRole = _readStringValue(data, <String>['role']);
-        _studentMajor = _readStringValue(data, <String>['major', 'faculty', 'department']);
-        _studentPhone = _readStringValue(data, <String>['phone', 'phoneNumber']);
+        _studentMajor = _readStringValue(data, <String>[
+          'major',
+          'faculty',
+          'department',
+        ]);
+        _studentPhone = _readStringValue(data, <String>[
+          'phone',
+          'phoneNumber',
+        ]);
         _defaultPickupArea = _readStringValue(data, <String>[
           'defaultPickupArea',
           'defaultPickup',
@@ -192,7 +214,8 @@ class UnifiedAuthProvider extends ChangeNotifier {
   }
 
   Future<void> refreshProfileData() async {
-    final firebase.User? user = _firebaseService.getCurrentUser() ?? _currentUser;
+    final firebase.User? user =
+        _firebaseService.getCurrentUser() ?? _currentUser;
     if (user == null) {
       return;
     }
@@ -243,8 +266,11 @@ class UnifiedAuthProvider extends ChangeNotifier {
     return null;
   }
 
-  String? _extractPhotoUrlFromAdditionalUserInfo(firebase.UserCredential credential) {
-    final Map<String, dynamic>? profile = credential.additionalUserInfo?.profile;
+  String? _extractPhotoUrlFromAdditionalUserInfo(
+    firebase.UserCredential credential,
+  ) {
+    final Map<String, dynamic>? profile =
+        credential.additionalUserInfo?.profile;
     if (profile == null) {
       return null;
     }
@@ -261,7 +287,9 @@ class UnifiedAuthProvider extends ChangeNotifier {
     ]);
   }
 
-  String? _extractAccessTokenFromUserCredential(firebase.UserCredential credential) {
+  String? _extractAccessTokenFromUserCredential(
+    firebase.UserCredential credential,
+  ) {
     final firebase.AuthCredential? rawCredential = credential.credential;
     if (rawCredential is firebase.OAuthCredential) {
       final String? accessToken = rawCredential.accessToken?.trim();
@@ -316,14 +344,11 @@ class UnifiedAuthProvider extends ChangeNotifier {
     Future.microtask(() async {
       try {
         await _firebaseService
-            .saveUserData(
-              user.uid,
-              <String, dynamic>{
-                'defaultPickupArea': pickup,
-                'usualBusNumber': bus,
-                'updatedAt': FieldValue.serverTimestamp(),
-              },
-            )
+            .saveUserData(user.uid, <String, dynamic>{
+              'defaultPickupArea': pickup,
+              'usualBusNumber': bus,
+              'updatedAt': FieldValue.serverTimestamp(),
+            })
             .timeout(const Duration(seconds: 10));
       } catch (e) {
         _authError =
@@ -347,8 +372,11 @@ class UnifiedAuthProvider extends ChangeNotifier {
         throw Exception('Email domain not allowed');
       }
 
-      final credential = await _firebaseService.signUpWithEmail(email, password);
-      
+      final credential = await _firebaseService.signUpWithEmail(
+        email,
+        password,
+      );
+
       if (credential?.user != null) {
         _currentUser = credential!.user;
         _currentEmail = _currentUser!.email;
@@ -393,9 +421,10 @@ class UnifiedAuthProvider extends ChangeNotifier {
   /// Send signup emails and return a user-facing status message.
   Future<String> _sendSignUpEmails(String email) async {
     try {
-      await _firebaseService
-          .sendEmailVerification()
-          .timeout(const Duration(seconds: 8), onTimeout: () {});
+      await _firebaseService.sendEmailVerification().timeout(
+        const Duration(seconds: 8),
+        onTimeout: () {},
+      );
 
       await _firebaseService
           .sendSignInLinkToEmail(email)
@@ -414,23 +443,24 @@ class UnifiedAuthProvider extends ChangeNotifier {
       try {
         // These run in background without blocking UI.
         await Future.wait([
-          _firebaseService.saveUserData(
-            uid,
-            {
-              'email': email,
-              'emailVerified': false,
-              'createdAt': FieldValue.serverTimestamp(),
-              'role': 'student',
-              'authMethod': 'firebase',
-            },
-          ).timeout(
-            const Duration(seconds: 10),
-            onTimeout: () => debugPrint('Save user data timeout'),
-          ),
-          _firebaseService.subscribeToTopic('all_students').timeout(
-            const Duration(seconds: 5),
-            onTimeout: () => debugPrint('Subscribe to topic timeout'),
-          ),
+          _firebaseService
+              .saveUserData(uid, {
+                'email': email,
+                'emailVerified': false,
+                'createdAt': FieldValue.serverTimestamp(),
+                'role': 'student',
+                'authMethod': 'firebase',
+              })
+              .timeout(
+                const Duration(seconds: 10),
+                onTimeout: () => debugPrint('Save user data timeout'),
+              ),
+          _firebaseService
+              .subscribeToTopic('all_students')
+              .timeout(
+                const Duration(seconds: 5),
+                onTimeout: () => debugPrint('Subscribe to topic timeout'),
+              ),
         ]);
       } catch (e) {
         debugPrint('Background signup tasks error: $e');
@@ -455,20 +485,19 @@ class UnifiedAuthProvider extends ChangeNotifier {
           .signInWithEmail(email, password)
           .timeout(
             const Duration(seconds: 20),
-            onTimeout: () => throw Exception('Sign-in request timed out. Please try again.'),
+            onTimeout: () =>
+                throw Exception('Sign-in request timed out. Please try again.'),
           );
-      
+
       if (credential?.user != null) {
         final bool isVerified = await _firebaseService
             .reloadAndCheckEmailVerified()
-            .timeout(
-              const Duration(seconds: 8),
-              onTimeout: () => false,
-            );
+            .timeout(const Duration(seconds: 8), onTimeout: () => false);
         if (!isVerified) {
-          await _firebaseService
-              .sendEmailVerification()
-              .timeout(const Duration(seconds: 5), onTimeout: () {});
+          await _firebaseService.sendEmailVerification().timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {},
+          );
           await _firebaseService.signOut();
           throw Exception(
             'Please verify your university email from the link sent to your inbox before signing in.',
@@ -481,7 +510,7 @@ class UnifiedAuthProvider extends ChangeNotifier {
         _studentRole = 'student';
         await _cacheLastUserRole('student');
         _lastAuthMethod = AuthMethod.firebase;
-        
+
         _runPostSignInTasks(_currentUser!.uid);
 
         notifyListeners();
@@ -513,18 +542,14 @@ class UnifiedAuthProvider extends ChangeNotifier {
     Future.microtask(() async {
       try {
         await Future.wait([
-          _loadUserDataFromFirestore(uid).timeout(
-            const Duration(seconds: 8),
-            onTimeout: () => null,
-          ),
+          _loadUserDataFromFirestore(
+            uid,
+          ).timeout(const Duration(seconds: 8), onTimeout: () => null),
           _firebaseService
-              .saveUserData(
-                uid,
-                <String, dynamic>{
-                  'emailVerified': true,
-                  'lastLogin': FieldValue.serverTimestamp(),
-                },
-              )
+              .saveUserData(uid, <String, dynamic>{
+                'emailVerified': true,
+                'lastLogin': FieldValue.serverTimestamp(),
+              })
               .timeout(const Duration(seconds: 8), onTimeout: () {}),
           _firebaseService
               .subscribeToTopic('all_students')
@@ -539,7 +564,8 @@ class UnifiedAuthProvider extends ChangeNotifier {
   /// Reload current user and check whether email is verified
   Future<bool> checkEmailVerified() async {
     try {
-      final bool verified = await _firebaseService.reloadAndCheckEmailVerified();
+      final bool verified = await _firebaseService
+          .reloadAndCheckEmailVerified();
       if (verified) {
         _currentUser = _firebaseService.getCurrentUser();
         _currentEmail = _currentUser?.email;
@@ -580,8 +606,8 @@ class UnifiedAuthProvider extends ChangeNotifier {
 
         microsoftPhotoUrl = microsoftResult.photoUrl;
         microsoftPhotoBytes = await _microsoftAuthService
-          .fetchProfilePhotoBytes(microsoftResult.accessToken)
-          .timeout(const Duration(seconds: 8), onTimeout: () => null);
+            .fetchProfilePhotoBytes(microsoftResult.accessToken)
+            .timeout(const Duration(seconds: 8), onTimeout: () => null);
 
         credential = await _firebaseService
             .signInWithMicrosoftTokens(
@@ -593,9 +619,9 @@ class UnifiedAuthProvider extends ChangeNotifier {
         _microsoftRefreshToken = microsoftResult.refreshToken;
       } else {
         try {
-          credential = await _firebaseService
-              .signInWithMicrosoft()
-              .timeout(const Duration(seconds: 60));
+          credential = await _firebaseService.signInWithMicrosoft().timeout(
+            const Duration(seconds: 60),
+          );
         } catch (e) {
           final String raw = e.toString().toLowerCase();
           if (!raw.contains('invalid-cert-hash') &&
@@ -610,16 +636,17 @@ class UnifiedAuthProvider extends ChangeNotifier {
           }
 
           // Fallback for Android cert-hash mismatch: use AppAuth then Firebase credential.
-          final MicrosoftAuthResult? microsoftResult = await _microsoftAuthService
-              .signInWithMicrosoft()
-              .timeout(const Duration(seconds: 60));
+          final MicrosoftAuthResult? microsoftResult =
+              await _microsoftAuthService.signInWithMicrosoft().timeout(
+                const Duration(seconds: 60),
+              );
 
           if (microsoftResult == null || microsoftResult.accessToken.isEmpty) {
             throw Exception('Microsoft authentication cancelled');
           }
 
           microsoftPhotoUrl = microsoftResult.photoUrl;
-            microsoftPhotoBytes = await _microsoftAuthService
+          microsoftPhotoBytes = await _microsoftAuthService
               .fetchProfilePhotoBytes(microsoftResult.accessToken)
               .timeout(const Duration(seconds: 8), onTimeout: () => null);
 
@@ -646,20 +673,20 @@ class UnifiedAuthProvider extends ChangeNotifier {
         throw Exception('Microsoft email domain not allowed');
       }
 
-        final String? providerProfilePhotoUrl =
+      final String? providerProfilePhotoUrl =
           _extractPhotoUrlFromAdditionalUserInfo(credential);
-        final String? credentialAccessToken =
+      final String? credentialAccessToken =
           _extractAccessTokenFromUserCredential(credential);
-        if (microsoftPhotoBytes == null && credentialAccessToken != null) {
+      if (microsoftPhotoBytes == null && credentialAccessToken != null) {
         microsoftPhotoBytes = await _microsoftAuthService
-          .fetchProfilePhotoBytes(credentialAccessToken)
-          .timeout(const Duration(seconds: 8), onTimeout: () => null);
-        }
+            .fetchProfilePhotoBytes(credentialAccessToken)
+            .timeout(const Duration(seconds: 8), onTimeout: () => null);
+      }
 
       _currentUser = user;
       _currentEmail = email;
       _currentName = user.displayName;
-        _currentPhotoUrl =
+      _currentPhotoUrl =
           _extractPhotoUrlFromFirebaseUser(user) ??
           microsoftPhotoUrl ??
           providerProfilePhotoUrl;
@@ -674,8 +701,7 @@ class UnifiedAuthProvider extends ChangeNotifier {
       // Do not block navigation on network-dependent writes/subscriptions.
       Future.microtask(() async {
         try {
-          await _firebaseService
-              .firestore
+          await _firebaseService.firestore
               .collection('users')
               .doc(user.uid)
               .set({
@@ -737,7 +763,7 @@ class UnifiedAuthProvider extends ChangeNotifier {
 
     try {
       final credential = await _firebaseService.signInWithGoogle();
-      
+
       if (credential?.user != null) {
         _currentUser = credential!.user;
         _currentEmail = _currentUser!.email;
@@ -748,17 +774,14 @@ class UnifiedAuthProvider extends ChangeNotifier {
         await _cacheLastUserRole('student');
         _lastAuthMethod = AuthMethod.firebase;
 
-        await _firebaseService.saveUserData(
-          _currentUser!.uid,
-          {
-            'email': _currentEmail,
-            'name': _currentName,
-            'photoUrl': _currentPhotoUrl,
-            'role': 'student',
-            'authMethod': 'google',
-            'lastLogin': FieldValue.serverTimestamp(),
-          },
-        );
+        await _firebaseService.saveUserData(_currentUser!.uid, {
+          'email': _currentEmail,
+          'name': _currentName,
+          'photoUrl': _currentPhotoUrl,
+          'role': 'student',
+          'authMethod': 'google',
+          'lastLogin': FieldValue.serverTimestamp(),
+        });
 
         await _firebaseService.subscribeToTopic('all_students');
 
@@ -789,7 +812,9 @@ class UnifiedAuthProvider extends ChangeNotifier {
 
   Future<String?> _extractPhotoUrlFromIdTokenClaims(firebase.User user) async {
     try {
-      final firebase.IdTokenResult tokenResult = await user.getIdTokenResult(true);
+      final firebase.IdTokenResult tokenResult = await user.getIdTokenResult(
+        true,
+      );
       final dynamic pictureClaim = tokenResult.claims?['picture'];
       if (pictureClaim == null) {
         return null;
@@ -826,7 +851,8 @@ class UnifiedAuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      if (!EmailDomainPolicy.isAllowedStudentEmail(email) || password.length < 6) {
+      if (!EmailDomainPolicy.isAllowedStudentEmail(email) ||
+          password.length < 6) {
         throw Exception('Invalid email or password');
       }
 
@@ -862,8 +888,9 @@ class UnifiedAuthProvider extends ChangeNotifier {
     if (_microsoftRefreshToken == null) return false;
 
     try {
-      final newAccessToken =
-          await _microsoftAuthService.refreshAccessToken(_microsoftRefreshToken);
+      final newAccessToken = await _microsoftAuthService.refreshAccessToken(
+        _microsoftRefreshToken,
+      );
       return newAccessToken != null;
     } catch (e) {
       debugPrint('Token refresh failed: $e');
@@ -901,11 +928,14 @@ class UnifiedAuthProvider extends ChangeNotifier {
     }
 
     if (raw.contains('Microsoft email domain not allowed')) {
-      final String domains = EmailDomainPolicy.microsoftAllowedDomains.join(', ');
+      final String domains = EmailDomainPolicy.microsoftAllowedDomains.join(
+        ', ',
+      );
       return 'Microsoft sign-in is limited to Isra University accounts only. Allowed domains: $domains';
     }
 
-    if (raw.contains('invalid-cert-hash') || raw.contains('invalid_cert_hash')) {
+    if (raw.contains('invalid-cert-hash') ||
+        raw.contains('invalid_cert_hash')) {
       return 'Android certificate hash is not registered in Firebase for com.example.wayfinder. Add your current app SHA-1/SHA-256 in Firebase Console > Project settings > Android app, then download a fresh google-services.json and rebuild the app.';
     }
 
