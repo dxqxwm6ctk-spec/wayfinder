@@ -1,3 +1,4 @@
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -20,6 +21,38 @@ class LeaderWebScreen extends StatefulWidget {
 }
 
 class _LeaderWebScreenState extends State<LeaderWebScreen> {
+  final Map<String, TextEditingController> _busInputControllers =
+      <String, TextEditingController>{};
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      context.read<TransitProvider>().load();
+    });
+  }
+
+  TextEditingController _busControllerForZone(String zoneId) {
+    return _busInputControllers.putIfAbsent(
+      zoneId,
+      () => TextEditingController(),
+    );
+  }
+
+  void _cleanupBusControllers(Iterable<String> activeZoneIds) {
+    final Set<String> activeIds = activeZoneIds.toSet();
+    final List<String> staleIds = _busInputControllers.keys
+        .where((String id) => !activeIds.contains(id))
+        .toList();
+
+    for (final String id in staleIds) {
+      _busInputControllers.remove(id)?.dispose();
+    }
+  }
+
   Future<void> _logoutLeader() async {
     final AuthProvider auth = context.read<AuthProvider>();
     final AppSettingsProvider settings = context.read<AppSettingsProvider>();
@@ -118,6 +151,70 @@ class _LeaderWebScreenState extends State<LeaderWebScreen> {
     );
     countController.dispose();
     return result;
+  }
+
+  Future<bool> _confirmSoftDeleteZone(
+    AppStrings strings,
+    String zoneName,
+  ) async {
+    final bool? result = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text(strings.deleteZoneConfirmTitle(zoneName)),
+          content: Text(strings.deleteZoneConfirmMessage(zoneName)),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(strings.back),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(strings.confirm),
+            ),
+          ],
+        );
+      },
+    );
+
+    return result ?? false;
+  }
+
+  Future<bool> _confirmPermanentDeleteZone(
+    AppStrings strings,
+    String zoneName,
+  ) async {
+    final bool? result = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text(strings.permanentDeleteZoneConfirmTitle(zoneName)),
+          content: Text(strings.permanentDeleteZoneConfirmMessage(zoneName)),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(strings.back),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(strings.deletePermanently),
+            ),
+          ],
+        );
+      },
+    );
+
+    return result ?? false;
+  }
+
+  @override
+  void dispose() {
+    for (final TextEditingController controller
+        in _busInputControllers.values) {
+      controller.dispose();
+    }
+    _busInputControllers.clear();
+    super.dispose();
   }
 
   @override
@@ -557,6 +654,133 @@ class _LeaderWebScreenState extends State<LeaderWebScreen> {
             ],
           ),
         ),
+        const SizedBox(height: 16),
+        _PanelCard(
+          isDark: isDark,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      strings.deletedZones,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.critical.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      transit.deletedZones.length.toString(),
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: AppColors.critical,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (transit.deletedZones.isEmpty)
+                Text(
+                  strings.noDeletedZones,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                )
+              else
+                ...transit.deletedZones.map(
+                  (Zone zone) => Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? AppColors.glass.withValues(alpha: 0.18)
+                          : const Color(0xFFF5F7FB),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          strings.localizeZoneName(zone.name),
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: <Widget>[
+                            OutlinedButton.icon(
+                              onPressed: () {
+                                final bool restored = transit
+                                    .restoreDeletedZone(zone.id);
+                                if (!restored) {
+                                  return;
+                                }
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      strings.zoneRestored(
+                                        strings.localizeZoneName(zone.name),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.restore_rounded, size: 16),
+                              label: Text(strings.restoreZone),
+                            ),
+                            FilledButton.tonalIcon(
+                              onPressed: () async {
+                                final bool confirmed =
+                                    await _confirmPermanentDeleteZone(
+                                      strings,
+                                      strings.localizeZoneName(zone.name),
+                                    );
+                                if (!confirmed || !context.mounted) {
+                                  return;
+                                }
+                                final bool deleted = transit
+                                    .deleteZonePermanently(zone.id);
+                                if (!deleted || !context.mounted) {
+                                  return;
+                                }
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      strings.zonePermanentlyDeleted(
+                                        strings.localizeZoneName(zone.name),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(
+                                Icons.delete_forever_rounded,
+                                size: 16,
+                              ),
+                              label: Text(strings.deletePermanently),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -567,6 +791,8 @@ class _LeaderWebScreenState extends State<LeaderWebScreen> {
     AppStrings strings,
     bool isDark,
   ) {
+    _cleanupBusControllers(transit.zones.map((Zone zone) => zone.id));
+
     final List<Widget> zoneCards = transit.zones
         .map(
           (Zone zone) =>
@@ -635,6 +861,7 @@ class _LeaderWebScreenState extends State<LeaderWebScreen> {
     };
     final int boardedCount = transit.boardedCountForZone(zone.id);
     final List<String> zoneBuses = transit.assignedBusesForZone(zone.id);
+    final TextEditingController busController = _busControllerForZone(zone.id);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -703,6 +930,35 @@ class _LeaderWebScreenState extends State<LeaderWebScreen> {
                     : AppColors.stable,
               ),
               const SizedBox(width: 10),
+              if (zoneBuses.length > 1)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.moderate.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: AppColors.moderate.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Text(
+                    '+${zoneBuses.length - 1}',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: AppColors.moderate,
+                    ),
+                  ),
+                ),
+              if (zoneBuses.length > 1) const SizedBox(width: 8),
+              if (zone.assignedBus != null && transit.isBusDeparted(zone.id))
+                _ZoneBadge(
+                  label: strings.departed,
+                  icon: Icons.check_circle_rounded,
+                  color: AppColors.stable,
+                ),
+              if (zone.assignedBus != null && transit.isBusDeparted(zone.id))
+                const SizedBox(width: 10),
               if (boardedCount > 0)
                 _ZoneBadge(
                   label: '${strings.boardedCountLabel}: $boardedCount',
@@ -713,122 +969,320 @@ class _LeaderWebScreenState extends State<LeaderWebScreen> {
           ),
           if (zoneBuses.length > 1) ...<Widget>[
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: zoneBuses
-                  .map(
-                    (String bus) => Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
+            Column(
+              children: zoneBuses.map((String bus) {
+                final bool isPrimary = bus == zoneBuses.first;
+                final bool departed = transit.isSpecificBusDeparted(
+                  zone.id,
+                  bus,
+                );
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? AppColors.glass.withValues(alpha: 0.28)
+                        : const Color(0xFFEFF2F8),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          isPrimary
+                              ? 'BUS #$bus (${strings.assign})'
+                              : 'BUS #$bus',
+                          style: Theme.of(context).textTheme.labelMedium,
+                        ),
                       ),
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? AppColors.glass.withValues(alpha: 0.28)
-                            : const Color(0xFFEFF2F8),
-                        borderRadius: BorderRadius.circular(999),
+                      if (departed)
+                        Padding(
+                          padding: const EdgeInsetsDirectional.only(end: 6),
+                          child: Text(
+                            strings.departed,
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(color: AppColors.stable),
+                          ),
+                        ),
+                      if (!departed)
+                        IconButton(
+                          tooltip: strings.markDeparted,
+                          onPressed: () {
+                            transit.markSpecificBusDeparted(zone.id, bus);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(strings.busMarkedDeparted(bus)),
+                              ),
+                            );
+                          },
+                          icon: const Icon(
+                            Icons.check_circle_outline_rounded,
+                            size: 18,
+                            color: AppColors.stable,
+                          ),
+                        ),
+                      IconButton(
+                        tooltip: strings.remove,
+                        onPressed: () {
+                          transit.removeSpecificBus(zone.id, bus);
+                        },
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          size: 18,
+                          color: AppColors.accentLight,
+                        ),
                       ),
-                      child: Text('BUS #$bus'),
-                    ),
-                  )
-                  .toList(),
+                    ],
+                  ),
+                );
+              }).toList(),
             ),
           ],
           const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+          Row(
             children: <Widget>[
-              if (zone.assignedBus != null && !transit.isBusDeparted(zone.id))
-                OutlinedButton.icon(
+              Expanded(
+                child: TextField(
+                  controller: busController,
+                  textInputAction: TextInputAction.done,
+                  decoration: InputDecoration(
+                    hintText: strings.enterBus,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (zone.assignedBus == null)
+                SizedBox(
+                  width: 118,
+                  child: FilledButton(
+                    onPressed: () {
+                      final String bus = busController.text.trim();
+                      final String normalizedBus = bus
+                          .toUpperCase()
+                          .replaceAll('BUS #', '')
+                          .trim();
+                      if (bus.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(strings.busRequired)),
+                        );
+                        return;
+                      }
+                      if (normalizedBus.startsWith('0')) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(strings.busCannotStartWithZero),
+                          ),
+                        );
+                        return;
+                      }
+                      final bool ok = transit.assignBus(zone.id, bus);
+                      if (!ok) {
+                        return;
+                      }
+                      busController.clear();
+                    },
+                    child: Text(strings.assign),
+                  ),
+                )
+              else
+                FilledButton.tonalIcon(
                   onPressed: () {
-                    transit.markBusDeparted(zone.id);
+                    final String bus = busController.text.trim();
+                    final String normalizedBus = bus
+                        .toUpperCase()
+                        .replaceAll('BUS #', '')
+                        .trim();
+                    if (bus.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(strings.busRequired)),
+                      );
+                      return;
+                    }
+                    if (normalizedBus.startsWith('0')) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(strings.busCannotStartWithZero)),
+                      );
+                      return;
+                    }
+                    final bool ok = transit.addBusToZone(zone.id, bus);
+                    if (!ok) {
+                      return;
+                    }
+                    busController.clear();
+                  },
+                  icon: const Icon(Icons.add_rounded),
+                  label: Text(strings.addBus),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: Wrap(
+              spacing: 2,
+              runSpacing: 2,
+              children: <Widget>[
+                if (zone.assignedBus != null && !transit.isBusDeparted(zone.id))
+                  TextButton.icon(
+                    onPressed: () {
+                      transit.markBusDeparted(zone.id);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            strings.busMarkedDeparted(zone.assignedBus!),
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(
+                      Icons.check_circle_outline_rounded,
+                      size: 16,
+                    ),
+                    label: Text(
+                      strings.markDeparted,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: AppColors.stable,
+                      ),
+                    ),
+                  ),
+                if (zone.assignedBus != null)
+                  TextButton.icon(
+                    onPressed: () {
+                      transit.removeBus(zone.id);
+                    },
+                    icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                    label: Text(
+                      strings.remove,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: AppColors.accentLight,
+                      ),
+                    ),
+                  ),
+                TextButton.icon(
+                  onPressed: zone.studentsWaiting <= 0
+                      ? null
+                      : () async {
+                          final int? requested = await _askBoardedCount(
+                            strings,
+                          );
+                          if (requested == null || !context.mounted) {
+                            return;
+                          }
+                          final int available = transit.waitingCountForZone(
+                            zone.id,
+                          );
+                          if (available <= 0) {
+                            return;
+                          }
+
+                          int toApply = requested;
+                          if (requested > available) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  strings.boardedCountExceedsAvailable(
+                                    available,
+                                  ),
+                                ),
+                              ),
+                            );
+                            toApply = available;
+                          }
+
+                          final int applied = transit.leaderMarkStudentsBoarded(
+                            zone.id,
+                            toApply,
+                          );
+                          if (applied > 0 && context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  strings.studentsMarkedBoarded(
+                                    strings.localizeZoneName(zone.name),
+                                    applied,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                  icon: const Icon(
+                    Icons.remove_circle_outline_rounded,
+                    size: 16,
+                  ),
+                  label: Text(
+                    strings.markStudentBoarded,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: AppColors.moderate,
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: zone.studentsWaiting <= 0
+                      ? null
+                      : () {
+                          final int removed = transit
+                              .clearWaitingStudentsForZone(zone.id);
+                          if (removed > 0) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  strings.requestsCleared(
+                                    strings.localizeZoneName(zone.name),
+                                    removed,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                  icon: const Icon(Icons.group_remove_outlined, size: 16),
+                  label: Text(
+                    strings.clearRequests,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: AppColors.critical,
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () async {
+                    final String localizedName = strings.localizeZoneName(
+                      zone.name,
+                    );
+                    final bool confirmed = await _confirmSoftDeleteZone(
+                      strings,
+                      localizedName,
+                    );
+                    if (!confirmed || !context.mounted) {
+                      return;
+                    }
+                    final bool deleted = transit.softDeleteZone(zone.id);
+                    if (!deleted || !context.mounted) {
+                      return;
+                    }
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(
-                          strings.busMarkedDeparted(zone.assignedBus!),
-                        ),
+                        content: Text(strings.zoneDeleted(localizedName)),
                       ),
                     );
                   },
-                  icon: const Icon(
-                    Icons.check_circle_outline_rounded,
-                    size: 16,
+                  icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                  label: Text(
+                    strings.deleteZone,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: AppColors.accentLight,
+                    ),
                   ),
-                  label: Text(strings.markDeparted),
                 ),
-              OutlinedButton.icon(
-                onPressed: zone.studentsWaiting <= 0
-                    ? null
-                    : () async {
-                        final int? requested = await _askBoardedCount(strings);
-                        if (requested == null || !context.mounted) {
-                          return;
-                        }
-                        final int available = transit.waitingCountForZone(
-                          zone.id,
-                        );
-                        if (available <= 0) {
-                          return;
-                        }
-
-                        int toApply = requested;
-                        if (requested > available) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                strings.boardedCountExceedsAvailable(available),
-                              ),
-                            ),
-                          );
-                          toApply = available;
-                        }
-
-                        final int applied = transit.leaderMarkStudentsBoarded(
-                          zone.id,
-                          toApply,
-                        );
-                        if (applied > 0 && context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                strings.studentsMarkedBoarded(
-                                  strings.localizeZoneName(zone.name),
-                                  applied,
-                                ),
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                icon: const Icon(Icons.remove_circle_outline_rounded, size: 16),
-                label: Text(strings.markStudentBoarded),
-              ),
-              OutlinedButton.icon(
-                onPressed: zone.studentsWaiting <= 0
-                    ? null
-                    : () {
-                        final int removed = transit.clearWaitingStudentsForZone(
-                          zone.id,
-                        );
-                        if (removed > 0) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                strings.requestsCleared(
-                                  strings.localizeZoneName(zone.name),
-                                  removed,
-                                ),
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                icon: const Icon(Icons.group_remove_outlined, size: 16),
-                label: Text(strings.clearRequests),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),

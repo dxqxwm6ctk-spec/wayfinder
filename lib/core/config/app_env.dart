@@ -11,12 +11,12 @@ class AppEnv {
 
   static const String microsoftClientId = String.fromEnvironment(
     'MICROSOFT_CLIENT_ID',
-    defaultValue: '',
+    defaultValue: '4d68ab13-61fc-40b8-beb5-1220dd35e39d',
   );
 
   static const String microsoftTenantId = String.fromEnvironment(
     'MICROSOFT_TENANT_ID',
-    defaultValue: '074ab189-f952-432d-815b-4535fdc03417',
+    defaultValue: '2f92683b-1e10-4a6c-aebd-5d03a4c9a258',
   );
 
   static const String microsoftRedirectUrl = String.fromEnvironment(
@@ -37,7 +37,7 @@ class AppEnv {
 
   static const String emailLinkContinueUrl = String.fromEnvironment(
     'EMAIL_LINK_CONTINUE_URL',
-    defaultValue: 'https://wayfinder-284c0.firebaseapp.com',
+    defaultValue: 'https://wayfinder-recover-2026.firebaseapp.com',
   );
 
   // Optional Firebase Web config injected via --dart-define.

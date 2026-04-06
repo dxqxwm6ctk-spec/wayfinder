@@ -940,7 +940,7 @@ class UnifiedAuthProvider extends ChangeNotifier {
     }
 
     if (raw.contains('Microsoft Entra is not configured')) {
-      return 'Microsoft sign-in is not configured yet. Missing MICROSOFT_CLIENT_ID. Add it with --dart-define=MICROSOFT_CLIENT_ID=...';
+      return 'Microsoft sign-in configuration is incomplete. Ensure Microsoft provider is enabled in Firebase Authentication and, for native fallback, verify MICROSOFT_CLIENT_ID and MICROSOFT_TENANT_ID values.';
     }
 
     if (raw.contains('AADSTS700016')) {

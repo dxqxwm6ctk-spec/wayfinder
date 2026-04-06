@@ -33,11 +33,45 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <div style="max-width:760px;margin:20px auto 0;padding:14px 16px;border:1px solid #d7dfed;border-radius:12px;background:#f7fbff;color:#142033;font-family:Segoe UI,Arial,sans-serif;line-height:1.5;">
+    <strong style="display:block;font-size:16px;margin-bottom:4px;">لوحة القائد (Web Dashboard)</strong>
+    <span style="display:block;margin-bottom:8px;">صفحة مستقلة لتعديل بيانات المناطق على Firebase مباشرة، وستنعكس في التطبيق.</span>
+    <a href="leader-dashboard.html" style="display:inline-block;padding:8px 12px;border-radius:8px;background:#0e6ba8;color:#fff;text-decoration:none;font-weight:600;">فتح لوحة القائد</a>
+  </div>
+
   <div id="file-open-warning" style="display:none;max-width:760px;margin:40px auto;padding:20px;border:1px solid #d7dfed;border-radius:12px;background:#f7fbff;color:#142033;font-family:Segoe UI,Arial,sans-serif;line-height:1.5;">
     <h2 style="margin:0 0 8px;font-size:20px;">Wayfinder Web</h2>
     <p style="margin:0 0 10px;">This file was opened directly from disk (file://), so Flutter Web cannot start from the source web folder.</p>
     <p style="margin:0;">Use <strong>flutter run -d chrome</strong> for development, or open the built output from <strong>build/web</strong> through a web server.</p>
   </div>
+
+  <script>
+    // If you want to bind Firebase Web config from HTML directly,
+    // paste your Firebase config values here.
+    window.WAYFINDER_FIREBASE_CONFIG = {
+      apiKey: 'AIzaSyDisWG8t1ICqiFnYvxwkyUfebA-TCJnsL4',
+      authDomain: 'wayfinder-recover-2026.firebaseapp.com',
+      projectId: 'wayfinder-recover-2026',
+      storageBucket: 'wayfinder-recover-2026.firebasestorage.app',
+      messagingSenderId: '875615920420',
+      appId: '1:875615920420:web:4e57533300bef31024d3b1',
+      measurementId: 'G-7CNJW7MFVY'
+    };
+  </script>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script>
+    (function () {
+      var cfg = window.WAYFINDER_FIREBASE_CONFIG || {};
+      var hasRequired = !!(cfg.apiKey && cfg.projectId && cfg.appId && cfg.messagingSenderId);
+      if (!hasRequired) {
+        return;
+      }
+      if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length === 0) {
+        firebase.initializeApp(cfg);
+      }
+    })();
+  </script>
 
   <script>
     (function () {

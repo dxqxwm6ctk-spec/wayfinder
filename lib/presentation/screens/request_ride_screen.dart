@@ -29,6 +29,17 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
   Future<List<_QueueStudentInfo>>? _queueStudentsFuture;
   List<_QueueStudentInfo> _cachedQueueStudents = const <_QueueStudentInfo>[];
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      context.read<TransitProvider>().load();
+    });
+  }
+
   Widget _buildQueueSnapshotCard({
     required BuildContext context,
     required AppStrings strings,
@@ -47,6 +58,7 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
         isDark: isDark,
         hasBus: hasBus,
         summary: summary,
+        waitingCount: summary.studentsWaiting,
         students: const <_QueueStudentInfo>[],
         fallbackLabel: strings.studentFallback,
       );
@@ -108,6 +120,7 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                       isDark: isDark,
                       hasBus: hasBus,
                       summary: summary,
+                      waitingCount: summary.studentsWaiting,
                       students: students,
                       fallbackLabel: strings.studentFallback,
                     );
@@ -123,10 +136,10 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
     required bool isDark,
     required bool hasBus,
     required RequestExecutionSummary summary,
+    required int waitingCount,
     required List<_QueueStudentInfo> students,
     required String fallbackLabel,
   }) {
-    final int waitingCount = summary.studentsWaiting;
     final List<_QueueStudentInfo> avatarStudents = students
         .take(3)
         .toList(growable: false);
@@ -725,12 +738,17 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
     final RequestExecutionSummary? activeSummary = transit.activeRequestSummary;
     final bool hasLiveActiveRequest =
         transit.hasActiveStudentRequest && activeSummary != null;
-    final bool hasValidActiveRequest =
-        hasLiveActiveRequest && activeSummary.studentsWaiting > 0;
+    final bool hasValidActiveRequest = hasLiveActiveRequest;
     final bool canConfirmRequest =
         !hasValidActiveRequest && transit.pickupAreas.isNotEmpty;
     final RequestExecutionSummary? summaryForView = hasValidActiveRequest
-        ? activeSummary
+        ? RequestExecutionSummary(
+            area: activeSummary.area,
+            studentsWaiting: transit.waitingStudentsForArea(activeSummary.area),
+            busNumber:
+                transit.assignedBusForArea(activeSummary.area) ??
+                activeSummary.busNumber,
+          )
         : null;
 
     _maybeNotifyBusAssigned(transit, strings);

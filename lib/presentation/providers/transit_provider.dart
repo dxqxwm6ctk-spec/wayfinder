@@ -44,6 +44,7 @@ class TransitProvider extends ChangeNotifier {
   List<String> _pickupAreas = <String>[];
   String _selectedPickupArea = '';
   List<Zone> _zones = <Zone>[];
+  List<Zone> _deletedZones = <Zone>[];
   final Map<String, List<String>> _assignedBusesByZone =
       <String, List<String>>{};
     final Map<String, Set<String>> _departedBusesByZone =
@@ -56,10 +57,12 @@ class TransitProvider extends ChangeNotifier {
   bool _hasActiveStudentRequest = false;
   String? _activeRequestArea;
   DateTime? _lastUpdatedAt;
-  DateTime? _lastActiveRequestReconcileAt;
 
   bool get loading => _loading;
-  int get waitingStudents => _waitingStudents;
+  int get waitingStudents => _zones.fold<int>(
+    0,
+    (int sum, Zone zone) => sum + zone.studentsWaiting,
+  );
   String get fleetStatus {
     final Zone? zone = _zoneByPickupArea(_selectedPickupArea);
     if (zone?.assignedBus != null && zone!.assignedBus!.isNotEmpty) {
@@ -74,6 +77,7 @@ class TransitProvider extends ChangeNotifier {
   List<String> get pickupAreas => _pickupAreas;
   String get selectedPickupArea => _selectedPickupArea;
   List<Zone> get zones => _zones;
+  List<Zone> get deletedZones => _deletedZones;
   List<String> assignedBusesForZone(String zoneId) {
     return List<String>.unmodifiable(_assignedBusesByZone[zoneId] ?? <String>[]);
   }
@@ -89,11 +93,11 @@ class TransitProvider extends ChangeNotifier {
       return null;
     }
 
-    final Zone? zone = _zoneByPickupArea(_activeRequestArea!);
+    final String area = _activeRequestArea!;
     return RequestExecutionSummary(
-      area: _activeRequestArea!,
-      studentsWaiting: zone?.studentsWaiting ?? 0,
-      busNumber: zone?.assignedBus,
+      area: area,
+      studentsWaiting: waitingStudentsForArea(area),
+      busNumber: assignedBusForArea(area),
     );
   }
 
@@ -105,8 +109,7 @@ class TransitProvider extends ChangeNotifier {
   }
 
   String? get busForStudentArea {
-    final Zone? zone = _zoneByPickupArea(studentCurrentArea);
-    final String? bus = zone?.assignedBus?.trim();
+    final String? bus = assignedBusForArea(studentCurrentArea);
     if (bus == null || bus.isEmpty) {
       return null;
     }
@@ -115,6 +118,17 @@ class TransitProvider extends ChangeNotifier {
 
   List<String> get busesForStudentArea {
     return busesForArea(studentCurrentArea);
+  }
+
+  int waitingStudentsForArea(String area) {
+    final List<Zone> matches = _zonesByPickupArea(area);
+    if (matches.isEmpty) {
+      return 0;
+    }
+    return matches.fold<int>(
+      0,
+      (int sum, Zone zone) => sum + zone.studentsWaiting,
+    );
   }
 
   bool get shouldPromptStudentBoarding {
@@ -506,6 +520,7 @@ class TransitProvider extends ChangeNotifier {
     if (zone != null && !hasValidActiveForArea) {
       final Zone targetZone = zone;
       final int nextWaiting = targetZone.studentsWaiting + 1;
+
       _zones = _zones
           .map(
             (Zone item) => item.id == targetZone.id
@@ -514,8 +529,9 @@ class TransitProvider extends ChangeNotifier {
           )
           .toList();
       _waitingStudents += 1;
+
       _syncZoneUpdate(targetZone.id, <String, dynamic>{
-        'studentsWaiting': nextWaiting,
+        'studentsWaiting': FieldValue.increment(1),
       });
     }
 
@@ -562,7 +578,7 @@ class TransitProvider extends ChangeNotifier {
           .toList();
 
       _syncZoneUpdate(zone.id, <String, dynamic>{
-        'studentsWaiting': zone.studentsWaiting - 1,
+        'studentsWaiting': FieldValue.increment(-1),
       });
 
       if (_waitingStudents > 0) {
@@ -625,7 +641,7 @@ class TransitProvider extends ChangeNotifier {
         .toList();
 
     _syncZoneUpdate(zone.id, <String, dynamic>{
-      'studentsWaiting': zone.studentsWaiting - 1,
+      'studentsWaiting': FieldValue.increment(-1),
     });
 
     if (_waitingStudents > 0) {
@@ -759,33 +775,125 @@ class TransitProvider extends ChangeNotifier {
     return removed;
   }
 
-  String? assignedBusForArea(String area) {
-    final Zone? zone = _zoneByPickupArea(area);
-    final String? bus = zone?.assignedBus?.trim();
-    if (bus == null || bus.isEmpty) {
-      return null;
+  bool softDeleteZone(String zoneId) {
+    final Zone? zone = _firstWhereOrNull((Zone z) => z.id == zoneId);
+    if (zone == null) {
+      return false;
     }
-    return bus;
+
+    _zones = _zones.where((Zone item) => item.id != zoneId).toList();
+    _deletedZones = <Zone>[
+      ..._deletedZones.where((Zone item) => item.id != zoneId),
+      zone,
+    ]..sort((Zone a, Zone b) => a.name.compareTo(b.name));
+
+    _removeZoneOperationalState(zoneId);
+    if (_activeRequestArea != null &&
+        _normalize(_activeRequestArea!) == _normalize(zone.name)) {
+      _hasActiveStudentRequest = false;
+      _activeRequestArea = null;
+      _syncActiveRequestToRemote();
+    }
+
+    _refreshZoneDerivedState(previousArea: _selectedPickupArea);
+    _touchUpdatedAt();
+    notifyListeners();
+    _syncZoneDeletionState(zone: zone, isDeleted: true);
+    return true;
+  }
+
+  bool restoreDeletedZone(String zoneId) {
+    final Zone? zone = _deletedZoneById(zoneId);
+    if (zone == null) {
+      return false;
+    }
+
+    _deletedZones = _deletedZones.where((Zone item) => item.id != zoneId).toList();
+    _zones = <Zone>[
+      ..._zones.where((Zone item) => item.id != zoneId),
+      zone,
+    ];
+
+    _refreshZoneDerivedState(
+      previousArea: _selectedPickupArea,
+      preferredArea: zone.name,
+    );
+    _touchUpdatedAt();
+    notifyListeners();
+    _syncZoneDeletionState(zone: zone, isDeleted: false);
+    return true;
+  }
+
+  bool deleteZonePermanently(String zoneId) {
+    final Zone? active = _firstWhereOrNull((Zone zone) => zone.id == zoneId);
+    final Zone? deleted = _deletedZoneById(zoneId);
+
+    if (active == null && deleted == null) {
+      return false;
+    }
+
+    final String? zoneName = active?.name ?? deleted?.name;
+    _zones = _zones.where((Zone zone) => zone.id != zoneId).toList();
+    _deletedZones = _deletedZones.where((Zone zone) => zone.id != zoneId).toList();
+    _removeZoneOperationalState(zoneId);
+
+    if (_activeRequestArea != null &&
+        zoneName != null &&
+        _normalize(_activeRequestArea!) == _normalize(zoneName)) {
+      _hasActiveStudentRequest = false;
+      _activeRequestArea = null;
+      _syncActiveRequestToRemote();
+    }
+
+    _refreshZoneDerivedState(previousArea: _selectedPickupArea);
+    _touchUpdatedAt();
+    notifyListeners();
+    _syncZonePermanentDelete(zoneId);
+    return true;
+  }
+
+  String? assignedBusForArea(String area) {
+    final List<Zone> matches = _zonesByPickupArea(area);
+    for (final Zone zone in matches) {
+      final String? bus = zone.assignedBus?.trim();
+      if (bus != null && bus.isNotEmpty) {
+        return bus;
+      }
+    }
+    return null;
   }
 
   List<String> busesForArea(String area) {
-    final Zone? zone = _zoneByPickupArea(area);
-    if (zone == null) {
+    final List<Zone> matches = _zonesByPickupArea(area);
+    if (matches.isEmpty) {
       return <String>[];
     }
 
-    final List<String> buses = List<String>.from(
-      _assignedBusesByZone[zone.id] ?? <String>[],
-    );
-    if (buses.isNotEmpty) {
-      return buses;
+    final Set<String> result = <String>{};
+    for (final Zone zone in matches) {
+      final List<String> buses = List<String>.from(
+        _assignedBusesByZone[zone.id] ?? <String>[],
+      );
+      if (buses.isNotEmpty) {
+        result.addAll(buses.map((String bus) => bus.trim()).where((String bus) => bus.isNotEmpty));
+      }
+
+      final String? bus = zone.assignedBus?.trim();
+      if (bus != null && bus.isNotEmpty) {
+        result.add(bus);
+      }
     }
 
-    final String? bus = zone.assignedBus?.trim();
-    if (bus == null || bus.isEmpty) {
-      return <String>[];
-    }
-    return <String>[bus];
+    return result.toList();
+  }
+
+  List<Zone> _zonesByPickupArea(String area) {
+    final String normalizedArea = _normalize(area);
+    return _zones.where((Zone zone) {
+      final bool byName = _normalize(zone.name) == normalizedArea;
+      final bool byId = _normalize(zone.id) == normalizedArea;
+      return byName || byId;
+    }).toList();
   }
 
   Zone? _zoneByPickupArea(String area) {
@@ -805,9 +913,48 @@ class TransitProvider extends ChangeNotifier {
     _lastUpdatedAt = DateTime.now();
   }
 
+  void _removeZoneOperationalState(String zoneId) {
+    _assignedBusesByZone.remove(zoneId);
+    _departedBusesByZone.remove(zoneId);
+    _departedAtByBusByZone.remove(zoneId);
+    _requestsClearedAtByZone.remove(zoneId);
+    _lastHandledClearedAtByZone.remove(zoneId);
+    _boardedStudentsByZone.remove(zoneId);
+    _cancelAutoRemoveTimersForZone(zoneId);
+  }
+
+  void _refreshZoneDerivedState({String? previousArea, String? preferredArea}) {
+    _recomputeZoneSeverityAndSort();
+    _pickupAreas = _zones.map((Zone zone) => zone.name).toList();
+    _waitingStudents = _zones.fold<int>(
+      0,
+      (int sum, Zone zone) => sum + zone.studentsWaiting,
+    );
+
+    if (_pickupAreas.isEmpty) {
+      _selectedPickupArea = '';
+      return;
+    }
+
+    final String targetArea = preferredArea ?? previousArea ?? _selectedPickupArea;
+    final bool stillExists = _pickupAreas.any(
+      (String area) => _normalize(area) == _normalize(targetArea),
+    );
+    _selectedPickupArea = stillExists ? targetArea : _pickupAreas.first;
+  }
+
   Zone? _firstWhereOrNull(bool Function(Zone zone) predicate) {
     for (final Zone zone in _zones) {
       if (predicate(zone)) {
+        return zone;
+      }
+    }
+    return null;
+  }
+
+  Zone? _deletedZoneById(String zoneId) {
+    for (final Zone zone in _deletedZones) {
+      if (zone.id == zoneId) {
         return zone;
       }
     }
@@ -873,7 +1020,6 @@ class TransitProvider extends ChangeNotifier {
 
   Future<void> _startRealtimeSync() async {
     if (_isRealtimeSyncReady) {
-      _startPollingFallback();
       return;
     }
 
@@ -884,27 +1030,16 @@ class TransitProvider extends ChangeNotifier {
       _zonesSubscription = _firestoreDataService.getZonesStream().listen((
         QuerySnapshot snapshot,
       ) {
+        // Realtime stream active, so stop fallback polling to avoid quota spikes.
+        _zonesPollingTimer?.cancel();
+        _zonesPollingTimer = null;
+
         if (snapshot.docs.isEmpty) {
           return;
         }
 
-        final List<Zone> incoming = snapshot.docs.map((
-          QueryDocumentSnapshot doc,
-        ) {
-          final Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-          return Zone(
-            id: doc.id,
-            name: (data['name'] as String?) ?? doc.id,
-            studentsWaiting: (data['studentsWaiting'] as int?) ?? 0,
-            severity: _severityFromWaitingCount(
-              (data['studentsWaiting'] as int?) ?? 0,
-            ),
-            assignedBus:
-                (data['assignedBus'] as String?)?.trim().isEmpty == true
-                ? null
-                : data['assignedBus'] as String?,
-          );
-        }).toList();
+        final List<Zone> incoming = <Zone>[];
+        final List<Zone> deletedZones = <Zone>[];
 
         final Map<String, List<String>> assignedBusesByZone =
             <String, List<String>>{};
@@ -915,6 +1050,26 @@ class TransitProvider extends ChangeNotifier {
         final Map<String, int> requestsClearedAtByZone = <String, int>{};
         for (final QueryDocumentSnapshot doc in snapshot.docs) {
           final Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          final String zoneName = (data['name'] as String?) ?? doc.id;
+          final int studentsWaiting = _toNonNegativeInt(data['studentsWaiting']);
+
+          final Zone zone = Zone(
+            id: doc.id,
+            name: zoneName,
+            studentsWaiting: studentsWaiting,
+            severity: _severityFromWaitingCount(studentsWaiting),
+            assignedBus:
+                (data['assignedBus'] as String?)?.trim().isEmpty == true
+                ? null
+                : data['assignedBus'] as String?,
+          );
+
+          if (_isZoneDeleted(data['isDeleted'])) {
+            deletedZones.add(zone);
+            continue;
+          }
+
+          incoming.add(zone);
           final dynamic rawBuses = data['assignedBuses'];
           final List<String> buses = _normalizeAssignedBuses(
             rawBuses,
@@ -957,13 +1112,14 @@ class TransitProvider extends ChangeNotifier {
           departedBusesByZone,
           departedAtByBusByZone,
           requestsClearedAtByZone,
+          deletedZones,
         );
       }, onError: (Object error) {
         debugPrint('Zones stream error: $error');
+        _startPollingFallback();
       });
 
       _isRealtimeSyncReady = true;
-      _startPollingFallback();
     } catch (e) {
       debugPrint('Realtime sync unavailable: $e');
       _startPollingFallback();
@@ -976,14 +1132,12 @@ class TransitProvider extends ChangeNotifier {
     Map<String, Set<String>> departedBusesByZone,
     Map<String, Map<String, int>> departedAtByBusByZone,
     Map<String, int> requestsClearedAtByZone,
+    List<Zone> deletedZones,
   ) {
-    if (incoming.isEmpty) {
-      return;
-    }
-
     final String previousArea = _selectedPickupArea;
+
     _zones = incoming;
-    _recomputeZoneSeverityAndSort();
+    _deletedZones = deletedZones..sort((Zone a, Zone b) => a.name.compareTo(b.name));
     _assignedBusesByZone
       ..clear()
       ..addAll(assignedBusesByZone);
@@ -998,7 +1152,7 @@ class TransitProvider extends ChangeNotifier {
       ..addAll(requestsClearedAtByZone);
 
     final DateTime now = DateTime.now();
-    for (final Zone zone in incoming) {
+    for (final Zone zone in _zones) {
       final List<String> buses = assignedBusesByZone[zone.id] ?? <String>[];
       final Set<String> departed = departedBusesByZone[zone.id] ?? <String>{};
       final Map<String, int> departedAt =
@@ -1023,18 +1177,7 @@ class TransitProvider extends ChangeNotifier {
       }
     }
 
-    _pickupAreas = incoming.map((Zone zone) => zone.name).toList();
-    _waitingStudents = incoming.fold<int>(
-      0,
-      (int sum, Zone zone) => sum + zone.studentsWaiting,
-    );
-
-    if (_pickupAreas.isNotEmpty) {
-      final bool stillExists = _pickupAreas.any(
-        (String area) => _normalize(area) == _normalize(previousArea),
-      );
-      _selectedPickupArea = stillExists ? previousArea : _pickupAreas.first;
-    }
+    _refreshZoneDerivedState(previousArea: previousArea);
 
     _handleLeaderClearedRequests();
     _ensureActiveRequestWaitingInvariant(syncToRemote: true);
@@ -1045,30 +1188,15 @@ class TransitProvider extends ChangeNotifier {
   }
 
   void _startPollingFallback() {
-    _zonesPollingTimer ??= Timer.periodic(const Duration(seconds: 2), (
+    _zonesPollingTimer ??= Timer.periodic(const Duration(seconds: 30), (
       Timer timer,
     ) {
       Future<void>.microtask(() async {
         try {
           final QuerySnapshot<Map<String, dynamic>> snapshot =
               await _firestoreDataService.getZonesSnapshot();
-          final List<Zone> incoming = snapshot.docs.map((
-            QueryDocumentSnapshot<Map<String, dynamic>> doc,
-          ) {
-            final Map<String, dynamic> data = doc.data();
-            return Zone(
-              id: doc.id,
-              name: (data['name'] as String?) ?? doc.id,
-              studentsWaiting: (data['studentsWaiting'] as int?) ?? 0,
-              severity: _severityFromWaitingCount(
-                (data['studentsWaiting'] as int?) ?? 0,
-              ),
-              assignedBus:
-                  (data['assignedBus'] as String?)?.trim().isEmpty == true
-                  ? null
-                  : data['assignedBus'] as String?,
-            );
-          }).toList();
+          final List<Zone> incoming = <Zone>[];
+          final List<Zone> deletedZones = <Zone>[];
 
           final Map<String, List<String>> assignedBusesByZone =
               <String, List<String>>{};
@@ -1080,6 +1208,24 @@ class TransitProvider extends ChangeNotifier {
           for (final QueryDocumentSnapshot<Map<String, dynamic>> doc
               in snapshot.docs) {
             final Map<String, dynamic> data = doc.data();
+            final int studentsWaiting = _toNonNegativeInt(data['studentsWaiting']);
+            final Zone zone = Zone(
+              id: doc.id,
+              name: (data['name'] as String?) ?? doc.id,
+              studentsWaiting: studentsWaiting,
+              severity: _severityFromWaitingCount(studentsWaiting),
+              assignedBus:
+                  (data['assignedBus'] as String?)?.trim().isEmpty == true
+                  ? null
+                  : data['assignedBus'] as String?,
+            );
+
+            if (_isZoneDeleted(data['isDeleted'])) {
+              deletedZones.add(zone);
+              continue;
+            }
+
+            incoming.add(zone);
             final List<String> buses = _normalizeAssignedBuses(
               data['assignedBuses'],
               fallback: data['assignedBus'] as String?,
@@ -1121,6 +1267,7 @@ class TransitProvider extends ChangeNotifier {
             departedBusesByZone,
             departedAtByBusByZone,
             requestsClearedAtByZone,
+            deletedZones,
           );
         } catch (e) {
           debugPrint('Zones polling fallback failed: $e');
@@ -1148,6 +1295,35 @@ class TransitProvider extends ChangeNotifier {
     }
 
     return unique.where((String value) => value.isNotEmpty).toList();
+  }
+
+  int _toNonNegativeInt(dynamic raw) {
+    if (raw == null) {
+      return 0;
+    }
+    if (raw is int) {
+      return raw < 0 ? 0 : raw;
+    }
+    if (raw is num) {
+      final int value = raw.toInt();
+      return value < 0 ? 0 : value;
+    }
+    if (raw is String) {
+      final String value = raw.trim();
+      if (value.isEmpty) {
+        return 0;
+      }
+      final int? asInt = int.tryParse(value);
+      if (asInt != null) {
+        return asInt < 0 ? 0 : asInt;
+      }
+      final double? asDouble = double.tryParse(value);
+      if (asDouble != null) {
+        final int parsed = asDouble.toInt();
+        return parsed < 0 ? 0 : parsed;
+      }
+    }
+    return 0;
   }
 
   Set<String> _normalizeDepartedBuses(
@@ -1235,6 +1411,20 @@ class TransitProvider extends ChangeNotifier {
     return null;
   }
 
+  bool _isZoneDeleted(dynamic raw) {
+    if (raw is bool) {
+      return raw;
+    }
+    if (raw is num) {
+      return raw != 0;
+    }
+    if (raw is String) {
+      final String value = raw.trim().toLowerCase();
+      return value == 'true' || value == '1';
+    }
+    return false;
+  }
+
   void _handleLeaderClearedRequests() {
     if (!_hasActiveStudentRequest || _activeRequestArea == null) {
       return;
@@ -1300,30 +1490,11 @@ class TransitProvider extends ChangeNotifier {
       return;
     }
 
-    _zones = _zones
-        .map(
-          (Zone item) => item.id == zone.id
-              ? item.copyWith(studentsWaiting: 1)
-              : item,
-        )
-        .toList();
-    _recomputeZoneSeverityAndSort();
-    _waitingStudents = _zones.fold<int>(
-      0,
-      (int sum, Zone item) => sum + item.studentsWaiting,
-    );
-
-    if (syncToRemote) {
-      final DateTime now = DateTime.now();
-      final bool shouldSync =
-          _lastActiveRequestReconcileAt == null ||
-          now.difference(_lastActiveRequestReconcileAt!) >=
-              const Duration(seconds: 3);
-      if (shouldSync) {
-        _lastActiveRequestReconcileAt = now;
-        _syncZoneUpdate(zone.id, <String, dynamic>{'studentsWaiting': 1});
-      }
-    }
+    // Do not clear active request state here.
+    // studentsWaiting can momentarily appear as 0 while Firestore updates propagate.
+    // Active request lifecycle should be controlled by explicit cancel/board actions
+    // and leader-cleared signals.
+    return;
   }
 
   void _persistAssignedBusesToCache() {
@@ -1422,25 +1593,87 @@ class TransitProvider extends ChangeNotifier {
     unawaited(_syncZoneUpdateNow(zoneId, data));
   }
 
+  void _syncZoneDeletionState({required Zone zone, required bool isDeleted}) {
+    unawaited(_syncZoneDeletionStateNow(zone: zone, isDeleted: isDeleted));
+  }
+
+  Future<void> _syncZoneDeletionStateNow({
+    required Zone zone,
+    required bool isDeleted,
+  }) async {
+    try {
+      _firestoreDataService.initialize();
+
+      final Map<String, dynamic> payload = <String, dynamic>{
+        'name': zone.name,
+        'isDeleted': isDeleted,
+        'deletedAt': isDeleted
+            ? DateTime.now().millisecondsSinceEpoch
+            : FieldValue.delete(),
+        if (isDeleted) ...<String, dynamic>{
+          'studentsWaiting': 0,
+          'assignedBus': FieldValue.delete(),
+          'assignedBuses': FieldValue.delete(),
+          'departed': false,
+          'departedAt': FieldValue.delete(),
+          'departedBuses': FieldValue.delete(),
+          'departedAtByBus': FieldValue.delete(),
+        },
+      };
+
+      await _firestoreDataService.updateZone(zone.id, payload);
+      await _firestoreDataService.updateZonesByName(zone.name, payload);
+    } catch (e) {
+      debugPrint('Zone deletion-state sync failed for ${zone.id}: $e');
+    }
+  }
+
+  void _syncZonePermanentDelete(String zoneId) {
+    unawaited(_syncZonePermanentDeleteNow(zoneId));
+  }
+
+  Future<void> _syncZonePermanentDeleteNow(String zoneId) async {
+    try {
+      _firestoreDataService.initialize();
+      await _firestoreDataService.deleteZonePermanently(zoneId);
+    } catch (e) {
+      debugPrint('Zone permanent delete failed for $zoneId: $e');
+    }
+  }
+
   Future<void> _syncZoneUpdateNow(String zoneId, Map<String, dynamic> data) async {
     try {
       _firestoreDataService.initialize();
 
       final Zone? zone = _firstWhereOrNull((Zone z) => z.id == zoneId);
-      final Map<String, dynamic> payload = <String, dynamic>{
-        if (zone != null) ...<String, dynamic>{
-          'name': zone.name,
-          'studentsWaiting': zone.studentsWaiting,
-          'severity': _severityToString(zone.severity),
-          'assignedBus': zone.assignedBus,
-        },
-        ...data,
-      };
+      
+      // Check if data contains a FieldValue operation (like increment/decrement)
+      // If so, use ONLY that operation, don't merge with zone properties
+      final bool hasFieldValueOp = data.entries.any(
+        (MapEntry<String, dynamic> e) =>
+          e.key == 'studentsWaiting' &&
+          e.value != null &&
+          e.value.runtimeType.toString().contains('FieldValue'),
+      );
+
+      final Map<String, dynamic> payload = hasFieldValueOp
+          ? data  // Send ONLY the FieldValue operation
+          : <String, dynamic>{
+              if (zone != null) ...<String, dynamic>{
+                'name': zone.name,
+                'studentsWaiting': zone.studentsWaiting,
+                'severity': _severityToString(zone.severity),
+                'assignedBus': zone.assignedBus,
+              },
+              ...data,
+            };
 
       await _firestoreDataService.updateZone(zoneId, payload);
 
       final String? zoneName = zone?.name.trim();
-      if (zoneName != null && zoneName.isNotEmpty) {
+      // Do not fan out FieldValue counter operations by name, otherwise
+      // one student request may increment multiple same-name documents.
+      if (!hasFieldValueOp && zoneName != null && zoneName.isNotEmpty) {
         await _firestoreDataService.updateZonesByName(zoneName, payload);
       }
     } catch (e) {

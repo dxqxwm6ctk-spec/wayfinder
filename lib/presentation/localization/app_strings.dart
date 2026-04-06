@@ -201,6 +201,34 @@ class AppStrings {
   String get assign => isArabic ? 'تعيين' : 'ASSIGN';
   String get addBus => isArabic ? 'إضافة باص' : 'Add Bus';
   String get clearRequests => isArabic ? 'حذف الطلبات' : 'Clear Requests';
+  String get deleteZone => isArabic ? 'حذف المنطقة' : 'Delete Zone';
+  String get deletedZones => isArabic ? 'المناطق المحذوفة' : 'Deleted Zones';
+  String get noDeletedZones => isArabic
+      ? 'لا توجد مناطق محذوفة حالياً.'
+      : 'No deleted zones currently.';
+  String get restoreZone => isArabic ? 'استرجاع' : 'Restore';
+  String get deletePermanently => isArabic ? 'حذف نهائي' : 'Delete Permanently';
+  String deleteZoneConfirmTitle(String zoneName) => isArabic
+      ? 'حذف منطقة $zoneName؟'
+      : 'Delete zone $zoneName?';
+  String deleteZoneConfirmMessage(String zoneName) => isArabic
+      ? 'سيتم نقل منطقة $zoneName إلى قائمة المناطق المحذوفة ويمكن استرجاعها لاحقاً.'
+      : 'Zone $zoneName will be moved to deleted zones and can be restored later.';
+  String permanentDeleteZoneConfirmTitle(String zoneName) => isArabic
+      ? 'حذف نهائي لمنطقة $zoneName؟'
+      : 'Permanently delete $zoneName?';
+  String permanentDeleteZoneConfirmMessage(String zoneName) => isArabic
+      ? 'سيتم حذف منطقة $zoneName نهائياً ولا يمكن التراجع.'
+      : 'Zone $zoneName will be permanently deleted and cannot be undone.';
+  String zoneDeleted(String zoneName) => isArabic
+      ? 'تم نقل $zoneName إلى المناطق المحذوفة.'
+      : '$zoneName moved to deleted zones.';
+  String zoneRestored(String zoneName) => isArabic
+      ? 'تم استرجاع منطقة $zoneName.'
+      : '$zoneName has been restored.';
+  String zonePermanentlyDeleted(String zoneName) => isArabic
+      ? 'تم حذف منطقة $zoneName نهائياً.'
+      : '$zoneName has been permanently deleted.';
   String get clearAllRequests =>
       isArabic ? 'حذف كل الطلاب المنتظرين' : 'Clear All Waiting Students';
   String get noStudentsCurrently =>

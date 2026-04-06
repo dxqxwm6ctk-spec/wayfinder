@@ -1,51 +1,26 @@
 {
   "project_info": {
-    "project_number": "1036096493269",
-    "project_id": "wayfinder-284c0",
-    "storage_bucket": "wayfinder-284c0.firebasestorage.app"
+    "project_number": "875615920420",
+    "project_id": "wayfinder-recover-2026",
+    "storage_bucket": "wayfinder-recover-2026.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1036096493269:android:7e66cecbdf044757bdf45c",
+        "mobilesdk_app_id": "1:875615920420:android:c88297826ad5463624d3b1",
         "android_client_info": {
           "package_name": "com.example.wayfinder"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "1036096493269-b5ncnjnp7oa99g3riah9poi8a6tr9f3a.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.example.wayfinder",
-            "certificate_hash": "b2a8c0586c776e80bf944dee09b04ddf2089024f"
-          }
-        },
-        {
-          "client_id": "1036096493269-2jkv3ivtv8vrlk0h6pvn5h9scj9lclia.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDMPnU5sj9mf6GslykkM-oE_vpo64iw6po"
+          "current_key": "AIzaSyBAFZMiyo-sPyVsBu2EydAsCpDwmmoOOSk"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "1036096493269-2jkv3ivtv8vrlk0h6pvn5h9scj9lclia.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "1036096493269-idgfntf9cdfabkgk17f9pbbherfp7rf4.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.example.wayfinder"
-              }
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }

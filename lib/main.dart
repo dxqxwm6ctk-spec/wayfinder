@@ -43,8 +43,7 @@ Future<void> main() async {
       debugPrint('Microsoft Entra initialized successfully');
     } else {
       debugPrint(
-        'Microsoft Entra is not configured. '
-        'Set MICROSOFT_CLIENT_ID and MICROSOFT_TENANT_ID via --dart-define.',
+        'Microsoft sign-in is disabled by MICROSOFT_SIGN_IN_ENABLED.',
       );
     }
   } catch (e) {

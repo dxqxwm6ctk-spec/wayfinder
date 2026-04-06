@@ -98,10 +98,42 @@ class FirestoreDataService {
   /// Update zone
   Future<void> updateZone(String zoneId, Map<String, dynamic> data) async {
     _ensureInitialized();
-    await _firestore.collection('zones').doc(zoneId).set({
-      ...data,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    
+    // Check if contains FieldValue operations (increment/decrement/etc)
+    final bool hasFieldValueOp = data.values.any(
+      (dynamic v) => v?.runtimeType.toString().contains('FieldValue') ?? false,
+    );
+    
+    // Use update() for FieldValue operations, set() for regular values
+    if (hasFieldValueOp) {
+      try {
+        await _firestore
+            .collection('zones')
+            .doc(zoneId)
+            .update({
+              ...data,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+      } catch (e) {
+        // If document doesn't exist, create it instead
+        if (e.toString().contains('not-found')) {
+          await _firestore
+              .collection('zones')
+              .doc(zoneId)
+              .set({
+                ...data,
+                'updatedAt': FieldValue.serverTimestamp(),
+              }, SetOptions(merge: true));
+        } else {
+          rethrow;
+        }
+      }
+    } else {
+      await _firestore.collection('zones').doc(zoneId).set({
+        ...data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
   }
 
   /// Update all zone docs with a matching name (fallback when ids differ across clients).
@@ -128,6 +160,12 @@ class FirestoreDataService {
       );
     }
     await batch.commit();
+  }
+
+  /// Permanently delete zone document.
+  Future<void> deleteZonePermanently(String zoneId) async {
+    _ensureInitialized();
+    await _firestore.collection('zones').doc(zoneId).delete();
   }
 
   // ==================== BUSES ====================

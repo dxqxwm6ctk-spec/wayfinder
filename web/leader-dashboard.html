@@ -1,0 +1,2683 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wayfinder | لوحة القائد</title>
+  <style>
+    :root {
+      --bg: #0d111a;
+      --paper: #121826;
+      --paper-2: #161d2d;
+      --ink: #e8eefc;
+      --ink-soft: #8d9ab8;
+      --brand: #2ec5a7;
+      --brand-2: #22a7e0;
+      --ok: #2eb67d;
+      --warn: #ffba5c;
+      --danger: #ff5f57;
+      --border: #23314b;
+      --glow: 0 25px 40px -30px rgba(0, 0, 0, 0.9);
+      --radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Cairo", "Tajawal", "Noto Sans Arabic", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 10% 0%, rgba(34, 167, 224, 0.2), transparent 34%),
+        radial-gradient(circle at 90% 10%, rgba(46, 197, 167, 0.15), transparent 30%),
+        linear-gradient(180deg, #0a0f18 0%, #0d111a 42%, #0a0f18 100%);
+      min-height: 100vh;
+      animation: fade-in 420ms ease-out;
+    }
+
+    @keyframes fade-in {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .page {
+      width: min(1180px, 94%);
+      margin: 18px auto 84px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, rgba(23, 33, 56, 0.96), rgba(16, 24, 42, 0.96));
+      color: #ffffff;
+      border: 1px solid rgba(75, 95, 139, 0.5);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: var(--glow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: -40% -20% auto auto;
+      width: 340px;
+      height: 340px;
+      background: radial-gradient(circle, rgba(46, 197, 167, 0.24), transparent 62%);
+      pointer-events: none;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(1.25rem, 2.5vw, 1.85rem);
+      font-weight: 800;
+      letter-spacing: 0.2px;
+    }
+
+    .hero p {
+      margin: 8px 0 0;
+      color: #b5c3e0;
+      font-size: 0.94rem;
+      max-width: 760px;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    button,
+    input {
+      font-family: inherit;
+    }
+
+    .btn {
+      border: 1px solid #3a4a6b;
+      background: #18233a;
+      color: #d8e3ff;
+      padding: 9px 13px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: transform 120ms ease, opacity 120ms ease;
+      font-size: 0.86rem;
+      font-weight: 700;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+      opacity: 0.9;
+    }
+
+    .btn-solid {
+      border-color: transparent;
+      background: linear-gradient(135deg, var(--brand), var(--brand-2));
+      color: #05171f;
+    }
+
+    .status {
+      margin-top: 12px;
+      border-radius: 12px;
+      padding: 8px 11px;
+      font-weight: 700;
+      font-size: 0.83rem;
+      background: #17243c;
+      display: inline-block;
+      border: 1px solid #2d3f63;
+    }
+
+    .status.warn {
+      background: rgba(255, 186, 92, 0.12);
+      color: #ffe4b8;
+      border-color: rgba(255, 186, 92, 0.4);
+    }
+
+    .status.error {
+      background: rgba(255, 95, 87, 0.14);
+      color: #ffd2cf;
+      border-color: rgba(255, 95, 87, 0.42);
+    }
+
+    .status.ok {
+      background: rgba(46, 182, 125, 0.13);
+      color: #cbffe9;
+      border-color: rgba(46, 182, 125, 0.4);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .grid-stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .stat {
+      background: var(--paper);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      box-shadow: var(--glow);
+      animation: rise-in 330ms ease both;
+    }
+
+    .stat h3 {
+      margin: 0;
+      font-size: 0.78rem;
+      color: var(--ink-soft);
+      font-weight: 700;
+    }
+
+    .stat strong {
+      display: block;
+      margin-top: 7px;
+      font-size: 1.3rem;
+      line-height: 1;
+      color: #f3f7ff;
+    }
+
+    .stat .hint {
+      margin-top: 5px;
+      font-size: 0.73rem;
+      color: var(--ink-soft);
+    }
+
+    @keyframes rise-in {
+      from {
+        opacity: 0;
+        transform: translateY(7px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .panel {
+      background: var(--paper);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 14px;
+      box-shadow: var(--glow);
+    }
+
+    .panel h2 {
+      margin: 0 0 12px;
+      font-size: 1rem;
+      color: #dbe7ff;
+    }
+
+    .live-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .live-card {
+      border: 1px solid #283653;
+      border-radius: 14px;
+      background: var(--paper-2);
+      padding: 10px;
+    }
+
+    .live-card .title {
+      font-size: 0.78rem;
+      color: var(--ink-soft);
+      margin-bottom: 7px;
+      font-weight: 700;
+    }
+
+    .live-card .value {
+      font-size: 1.18rem;
+      font-weight: 800;
+    }
+
+    .signal {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.82rem;
+      color: var(--ink-soft);
+      font-weight: 700;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .dot.ok {
+      background: var(--ok);
+      box-shadow: 0 0 0 5px rgba(46, 182, 125, 0.16);
+    }
+
+    .dot.warn {
+      background: var(--warn);
+      box-shadow: 0 0 0 5px rgba(255, 186, 92, 0.14);
+    }
+
+    .dot.error {
+      background: var(--danger);
+      box-shadow: 0 0 0 5px rgba(255, 95, 87, 0.14);
+    }
+
+    .qa-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .qa-btn {
+      border: 1px solid #2e3d5c;
+      background: #152033;
+      color: #e7efff;
+      border-radius: 14px;
+      padding: 12px;
+      cursor: pointer;
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      min-height: 84px;
+    }
+
+    .qa-btn .icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(46, 197, 167, 0.18);
+      color: #8df8df;
+      font-size: 0.92rem;
+      font-weight: 800;
+    }
+
+    .qa-btn .label {
+      font-weight: 800;
+      font-size: 0.88rem;
+    }
+
+    .qa-btn .sub {
+      font-size: 0.75rem;
+      color: var(--ink-soft);
+    }
+
+    .qa-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1.2fr 0.9fr 1fr 1fr auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field label {
+      font-size: 0.77rem;
+      color: var(--ink-soft);
+      font-weight: 700;
+    }
+
+    .input {
+      width: 100%;
+      border: 1px solid #2c3d5f;
+      background: #0f1729;
+      padding: 10px 11px;
+      border-radius: 12px;
+      font-size: 0.86rem;
+      color: #ecf3ff;
+    }
+
+    .btn-main {
+      background: linear-gradient(135deg, var(--brand), var(--brand-2));
+      color: #05171f;
+      border: 0;
+      padding: 10px 14px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 800;
+      min-height: 41px;
+    }
+
+    .zones {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px;
+    }
+
+    .zone-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--paper-2);
+      padding: 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      box-shadow: var(--glow);
+    }
+
+    .zone-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .zone-name {
+      margin: 0;
+      font-size: 0.97rem;
+      color: #e6eeff;
+    }
+
+    .severity {
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .severity.stable {
+      background: rgba(46, 182, 125, 0.14);
+      color: #a7f3d1;
+    }
+
+    .severity.moderate {
+      background: rgba(255, 186, 92, 0.14);
+      color: #ffd9a1;
+    }
+
+    .severity.critical {
+      background: rgba(255, 95, 87, 0.14);
+      color: #ffc6c2;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .bus-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .bus-row {
+      border: 1px solid #2d4061;
+      background: #132039;
+      border-radius: 12px;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .bus-row-main {
+      border-color: rgba(255, 186, 92, 0.42);
+    }
+
+    .bus-row-label {
+      font-size: 0.82rem;
+      color: #dbe7ff;
+      font-weight: 700;
+    }
+
+    .bus-row-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .bus-state {
+      font-size: 0.74rem;
+      color: #a7f3d1;
+      font-weight: 700;
+    }
+
+    .bus-extra-count {
+      border: 1px solid rgba(255, 186, 92, 0.4);
+      background: rgba(255, 186, 92, 0.12);
+      color: #ffd9a1;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 0.73rem;
+      font-weight: 700;
+    }
+
+    .inline-actions {
+      justify-content: flex-end;
+      gap: 3px;
+    }
+
+    .filter-tabs {
+      margin-top: 18px;
+      background: var(--paper);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 10px;
+      box-shadow: var(--glow);
+    }
+
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 0;
+    }
+
+    .filter-btn {
+      border: 1px solid #c8ced7;
+      background: #fff;
+      color: #203145;
+      padding: 7px 12px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 0.84rem;
+      font-weight: 700;
+    }
+
+    .filter-btn.active {
+      background: linear-gradient(135deg, var(--brand), var(--brand-2));
+      border-color: transparent;
+      color: #fff;
+    }
+
+    .zone-picker {
+      margin: 10px 0 12px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .tiny {
+      border: 1px solid #304668;
+      background: #152238;
+      color: #d8e4fc;
+      padding: 8px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .tiny.warn {
+      border-color: rgba(255, 186, 92, 0.42);
+      background: rgba(255, 186, 92, 0.12);
+      color: #ffd9a1;
+    }
+
+    .tiny.danger {
+      border-color: rgba(255, 95, 87, 0.42);
+      background: rgba(255, 95, 87, 0.12);
+      color: #ffc7c2;
+    }
+
+    .muted {
+      color: var(--ink-soft);
+      font-size: 0.76rem;
+    }
+
+    .setup {
+      margin-top: 18px;
+      background: #141d30;
+      border: 1px dashed #445678;
+      border-radius: 16px;
+      padding: 14px;
+    }
+
+    .setup code {
+      direction: ltr;
+      display: inline-block;
+      background: #1f2d47;
+      padding: 1px 6px;
+      border-radius: 6px;
+      color: #b8cdf5;
+    }
+
+    .setup textarea {
+      width: 100%;
+      min-height: 140px;
+      margin-top: 10px;
+      border: 1px solid #304668;
+      border-radius: 10px;
+      padding: 10px;
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 0.85rem;
+      direction: ltr;
+      background: #0e1629;
+      color: #dce9ff;
+    }
+
+    .auth-panel {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .auth-form {
+      background: var(--paper);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: var(--glow);
+      width: min(90vw, 360px);
+    }
+
+    .auth-form h3 {
+      margin: 0 0 16px;
+      font-size: 1.2rem;
+      color: #e8eefc;
+      text-align: center;
+    }
+
+    .auth-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+      flex-direction: column;
+    }
+
+    .setup-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+      align-items: end;
+    }
+
+    .names-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .name-chip {
+      border: 1px solid #314362;
+      background: #152238;
+      color: #c9daf9;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 0.84rem;
+      font-weight: 700;
+    }
+
+    .map-panel {
+      margin-top: 10px;
+      border: 1px solid #2d4061;
+      border-radius: 14px;
+      overflow: hidden;
+      display: none;
+      background: #0f1729;
+    }
+
+    .map-panel iframe {
+      width: 100%;
+      height: 260px;
+      border: 0;
+      display: block;
+    }
+
+    .fab {
+      position: fixed;
+      left: 18px;
+      bottom: 18px;
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      border: 0;
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--brand), var(--brand-2));
+      color: #021118;
+      font-size: 1.2rem;
+      font-weight: 800;
+      box-shadow: 0 18px 35px -20px rgba(34, 167, 224, 0.6);
+      z-index: 20;
+    }
+
+    .toast-host {
+      position: fixed;
+      top: 14px;
+      left: 14px;
+      z-index: 30;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: min(88vw, 320px);
+    }
+
+    .toast {
+      border: 1px solid #334a6f;
+      background: #13213a;
+      color: #dbebff;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 0.82rem;
+      box-shadow: var(--glow);
+      animation: rise-in 180ms ease;
+    }
+
+    .toast.ok {
+      border-color: rgba(46, 182, 125, 0.42);
+    }
+
+    .toast.warn {
+      border-color: rgba(255, 186, 92, 0.42);
+    }
+
+    .toast.error {
+      border-color: rgba(255, 95, 87, 0.42);
+    }
+
+    @media (max-width: 760px) {
+      .page {
+        width: min(98%, 1160px);
+        margin-top: 12px;
+      }
+
+      .layout {
+        gap: 10px;
+      }
+
+      .grid-stats {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .qa-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+
+      .card-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .fab {
+        display: block;
+      }
+    }
+
+    @media (min-width: 761px) {
+      .layout {
+        grid-template-columns: 1.1fr 1.4fr;
+      }
+
+      .live-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .fab {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <h1>لوحة القائد - Wayfinder</h1>
+      <p>تحكم مباشر بحركة النقل داخل الحرم: تحديث لحظي، قرارات سريعة، وإدارة مناطق بدون تعقيد.</p>
+      <div class="hero-actions" id="authSection">
+        <button id="toggleAuthPanelBtn" class="btn btn-solid">تسجيل دخول</button>
+        <button id="signOutBtn" class="btn" type="button" style="display:none;">تسجيل خروج</button>
+        <button id="refreshBtn" class="btn btn-solid">تحديث البيانات</button>
+        <button id="toggleSetupBtn" class="btn">إعداد Firebase</button>
+      </div>
+      <div id="authPanel" class="auth-panel" style="display:none;">
+        <div class="auth-form">
+          <h3>تسجيل الدخول</h3>
+          <div class="field">
+            <label for="emailInput">البريد الإلكتروني</label>
+            <input id="emailInput" class="input" type="email" placeholder="your@email.com" />
+          </div>
+          <div class="field">
+            <label for="passwordInput">كلمة المرور</label>
+            <input id="passwordInput" class="input" type="password" placeholder="••••••••" />
+          </div>
+          <div class="auth-actions">
+            <button id="signInBtn" class="btn-main" type="button">تسجيل دخول</button>
+            <button id="signUpBtn" class="btn" type="button">الحسابات من الإدارة فقط</button>
+          </div>
+        </div>
+      </div>
+      <div id="statusBox" class="status">جاري التهيئة...</div>
+    </section>
+
+    <div id="protectedContent" style="display:none;">
+
+    <section class="layout">
+      <section class="panel">
+        <h2>الحالة المباشرة</h2>
+        <div class="live-grid">
+          <article class="live-card">
+            <div class="title">الطلاب المنتظرون</div>
+            <div id="waitingCount" class="value">0</div>
+          </article>
+          <article class="live-card">
+            <div class="title">المناطق النشطة</div>
+            <div id="zonesCount" class="value">0</div>
+            <div class="hint">محذوفة: <span id="deletedZonesCount">0</span></div>
+          </article>
+          <article class="live-card">
+            <div class="title">المناطق تحت ضغط</div>
+            <div id="criticalCount" class="value">0</div>
+          </article>
+          <article class="live-card">
+            <div class="title">الحافلات النشطة</div>
+            <div id="activeBusesCount" class="value">0</div>
+            <div id="unassignedZonesCount" class="hint">غير مخصصة: 0</div>
+          </article>
+          <article class="live-card">
+            <div class="title">حالة النظام</div>
+            <div class="signal">
+              <span id="connectionDot" class="dot warn"></span>
+              <span id="connectionState">غير متصل</span>
+            </div>
+            <div class="hint">آخر تحديث: <span id="lastUpdate">-</span></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel" id="quickActionsPanel">
+        <h2>الإجراءات السريعة</h2>
+        <div class="qa-grid">
+          <button id="qaAddZoneBtn" class="qa-btn" type="button">
+            <span class="icon">+</span>
+            <span class="label">إضافة منطقة</span>
+            <span class="sub">إنشاء منطقة جديدة بسرعة</span>
+          </button>
+          <button id="qaAssignBusBtn" class="qa-btn" type="button">
+            <span class="icon">B</span>
+            <span class="label">تعيين حافلة</span>
+            <span class="sub">الانتقال مباشرة إلى البطاقات</span>
+          </button>
+          <button id="qaRefreshBtn" class="qa-btn" type="button">
+            <span class="icon">R</span>
+            <span class="label">تحديث البيانات</span>
+            <span class="sub">مزامنة فورية مع Firebase</span>
+          </button>
+          <button id="qaMapBtn" class="qa-btn" type="button">
+            <span class="icon">M</span>
+            <span class="label">عرض الخريطة</span>
+            <span class="sub">إظهار المناطق على الخريطة</span>
+          </button>
+        </div>
+      </section>
+    </section>
+
+    <section class="panel">
+      <h2>إدارة الحالة العامة</h2>
+      <div class="meta-grid">
+        <div class="field">
+          <label for="systemStatusInput">System Status</label>
+          <input id="systemStatusInput" class="input" type="text" placeholder="System Live" />
+        </div>
+        <div class="field">
+          <label for="campusConnectivityInput">Campus Connectivity</label>
+          <input id="campusConnectivityInput" class="input" type="text" placeholder="98% Uptime" />
+        </div>
+        <div class="field">
+          <label for="fleetStatusInput">Fleet Status</label>
+          <input id="fleetStatusInput" class="input" type="text" placeholder="NO BUS ASSIGNED" />
+        </div>
+        <button id="saveLeaderMetaBtn" class="btn-main" type="button">حفظ بيانات القائد</button>
+      </div>
+      <p class="muted">يتم الحفظ داخل المستند: leaderDashboard/current</p>
+    </section>
+
+    <section class="panel">
+      <h2>إدارة المناطق</h2>
+      <div class="form-row">
+        <div class="field">
+          <label for="zoneNameInput">اسم المنطقة</label>
+          <input id="zoneNameInput" class="input" type="text" placeholder="مثال: بوابة كلية الهندسة" />
+        </div>
+        <div class="field">
+          <label for="zoneBusInput">الباص الأساسي (اختياري)</label>
+          <input id="zoneBusInput" class="input" type="text" placeholder="12" />
+        </div>
+        <button id="addZoneBtn" class="btn-main" type="button">إضافة</button>
+      </div>
+      <p class="muted">عدد الطلاب، الحالة، وأيام التشغيل تُجلب تلقائيًا من التطبيق ولا يتم تعديلها من الداشبورد.</p>
+
+      <div class="filter-bar">
+        <button id="filterAllBtn" class="filter-btn active" type="button">الكل</button>
+        <button id="filterActiveBtn" class="filter-btn" type="button">النشطة فقط</button>
+        <button id="filterDeletedBtn" class="filter-btn" type="button">المحذوفة فقط</button>
+      </div>
+      <div class="zone-picker">
+        <div id="selectedZoneHint" class="muted">المنطقة المختارة: كل المناطق</div>
+        <div id="zonePickerChips" class="filter-bar"></div>
+      </div>
+      <div class="card-actions" style="margin-bottom: 10px;">
+        <button id="seedZonesBtn" class="tiny" type="button">زرع أسماء المناطق الافتراضية</button>
+      </div>
+
+      <h2 style="margin-top: 6px;">المناطق الحالية</h2>
+      <div id="zonesContainer" class="zones"></div>
+      <p id="emptyState" class="muted" style="display:none; margin-top: 8px;">لا توجد مناطق حالياً داخل Firestore.</p>
+
+      <h2>المناطق المحذوفة</h2>
+      <div id="deletedZonesContainer" class="zones"></div>
+      <p id="deletedEmptyState" class="muted" style="display:none; margin-top: 8px;">لا توجد مناطق محذوفة حالياً.</p>
+
+      <div id="mapPanel" class="map-panel">
+        <iframe
+          title="خريطة المناطق"
+          loading="lazy"
+          referrerpolicy="no-referrer-when-downgrade"
+          src="https://www.openstreetmap.org/export/embed.html?bbox=35.83%2C31.92%2C35.96%2C32.02&amp;layer=mapnik">
+        </iframe>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>أسماء المناطق (من Firebase)</h2>
+      <div id="zoneNamesContainer" class="names-wrap"></div>
+      <p id="zoneNamesEmpty" class="muted" style="display:none; margin-top: 8px;">لا توجد أسماء مناطق بعد.</p>
+    </section>
+
+    <section id="setupPanel" class="setup" style="display:none;">
+      <h2 style="margin-top:0;">إعداد Firebase للصفحة</h2>
+      <p style="margin-bottom: 4px;">انسخ نفس إعدادات الويب التي تستخدمها في التطبيق (FIREBASE_WEB_*) وضعها هنا بصيغة JSON:</p>
+      <p class="muted">مثال سريع: <code>{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"...","measurementId":"..."}</code></p>
+      <textarea id="configInput" placeholder='{"apiKey":"...","projectId":"...","appId":"...","messagingSenderId":"..."}'></textarea>
+      <div class="setup-actions">
+        <button id="saveConfigBtn" class="tiny" type="button">حفظ الإعداد</button>
+        <button id="clearConfigBtn" class="tiny danger" type="button">مسح الإعداد</button>
+      </div>
+    </section>
+
+    </div>
+
+    <button id="fabQuickBtn" class="fab" type="button" aria-label="إجراءات سريعة">+</button>
+    <div id="toastHost" class="toast-host" aria-live="polite" aria-atomic="true"></div>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+
+  <script>
+    (function () {
+      var statusBox = document.getElementById("statusBox");
+      var zonesCount = document.getElementById("zonesCount");
+      var deletedZonesCount = document.getElementById("deletedZonesCount");
+      var waitingCount = document.getElementById("waitingCount");
+      var criticalCount = document.getElementById("criticalCount");
+      var activeBusesCount = document.getElementById("activeBusesCount");
+      var unassignedZonesCount = document.getElementById("unassignedZonesCount");
+      var connectionState = document.getElementById("connectionState");
+      var connectionDot = document.getElementById("connectionDot");
+      var lastUpdate = document.getElementById("lastUpdate");
+      var zonesContainer = document.getElementById("zonesContainer");
+      var emptyState = document.getElementById("emptyState");
+      var deletedZonesContainer = document.getElementById("deletedZonesContainer");
+      var deletedEmptyState = document.getElementById("deletedEmptyState");
+      var mapPanel = document.getElementById("mapPanel");
+      var toastHost = document.getElementById("toastHost");
+      var zoneNamesContainer = document.getElementById("zoneNamesContainer");
+      var zoneNamesEmpty = document.getElementById("zoneNamesEmpty");
+      var selectedZoneHint = document.getElementById("selectedZoneHint");
+      var zonePickerChips = document.getElementById("zonePickerChips");
+      var setupPanel = document.getElementById("setupPanel");
+      var protectedContent = document.getElementById("protectedContent");
+      var configInput = document.getElementById("configInput");
+      var systemStatusInput = document.getElementById("systemStatusInput");
+      var campusConnectivityInput = document.getElementById("campusConnectivityInput");
+      var fleetStatusInput = document.getElementById("fleetStatusInput");
+
+      var zoneNameInput = document.getElementById("zoneNameInput");
+      var zoneBusInput = document.getElementById("zoneBusInput");
+
+      var addZoneBtn = document.getElementById("addZoneBtn");
+      var emailInput = document.getElementById("emailInput");
+      var passwordInput = document.getElementById("passwordInput");
+      var signInBtn = document.getElementById("signInBtn");
+      var signUpBtn = document.getElementById("signUpBtn");
+      var toggleAuthPanelBtn = document.getElementById("toggleAuthPanelBtn");
+      var authPanel = document.getElementById("authPanel");
+      var authSection = document.getElementById("authSection");
+      var signOutBtn = document.getElementById("signOutBtn");
+      var refreshBtn = document.getElementById("refreshBtn");
+      var toggleSetupBtn = document.getElementById("toggleSetupBtn");
+      var seedZonesBtn = document.getElementById("seedZonesBtn");
+      var saveLeaderMetaBtn = document.getElementById("saveLeaderMetaBtn");
+      var saveConfigBtn = document.getElementById("saveConfigBtn");
+      var clearConfigBtn = document.getElementById("clearConfigBtn");
+      var filterAllBtn = document.getElementById("filterAllBtn");
+      var filterActiveBtn = document.getElementById("filterActiveBtn");
+      var filterDeletedBtn = document.getElementById("filterDeletedBtn");
+      var qaAddZoneBtn = document.getElementById("qaAddZoneBtn");
+      var qaAssignBusBtn = document.getElementById("qaAssignBusBtn");
+      var qaRefreshBtn = document.getElementById("qaRefreshBtn");
+      var qaMapBtn = document.getElementById("qaMapBtn");
+      var fabQuickBtn = document.getElementById("fabQuickBtn");
+
+      var unsubscribe = null;
+      var unsubscribeLeaderMeta = null;
+      var auth = null;
+      var currentUser = null;
+      var db = null;
+      var zoneViewFilter = "all";
+      var isUserAuthorized = false;
+      var DEPARTED_AUTO_REMOVE_DELAY_MS = 60 * 1000;
+      var departedAutoRemoveTimers = {};
+      var zonesPollingTimer = null;
+      var latestZoneDocs = [];
+      var selectedZoneKey = "";
+      var selectedZoneLabel = "كل المناطق";
+
+      var APP_FIREBASE_DEFAULT_CONFIG = {
+        apiKey: "AIzaSyDisWG8t1ICqiFnYvxwkyUfebA-TCJnsL4",
+        authDomain: "wayfinder-recover-2026.firebaseapp.com",
+        projectId: "wayfinder-recover-2026",
+        storageBucket: "wayfinder-recover-2026.firebasestorage.app",
+        messagingSenderId: "875615920420",
+        appId: "1:875615920420:web:4e57533300bef31024d3b1",
+        measurementId: "G-7CNJW7MFVY"
+      };
+
+      var DEFAULT_ZONE_NAMES = [
+        "الجبل الشمالي",
+        "جبل الحسين",
+        "الجاردنز",
+        "الزهور",
+        "القويسمة",
+        "أبو علندا",
+        "النزهة",
+        "طبربور",
+        "المقابلين",
+        "البيادر",
+        "سحاب",
+        "الوحدات",
+        "الشرق الأوسط",
+        "أبو نصير",
+        "ناعور",
+        "الكرك",
+        "السلط",
+        "لواء الجيزة",
+        "رغدان",
+        "الصويفية",
+        "صويلح",
+        "شارع الجامعة",
+        "نزال",
+        "مادبا",
+        "مرج الحمام",
+        "الزرقاء",
+        "الرصيفة"
+      ];
+
+      function setStatus(text, type) {
+        statusBox.textContent = text;
+        statusBox.className = "status " + (type || "");
+      }
+
+      function showToast(text, type) {
+        if (!toastHost) {
+          return;
+        }
+        var toast = document.createElement("div");
+        toast.className = "toast " + (type || "");
+        toast.textContent = text;
+        toastHost.appendChild(toast);
+        window.setTimeout(function () {
+          if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+          }
+        }, 2600);
+      }
+
+      function setConnectionState(connected) {
+        connectionState.textContent = connected ? "متصل" : "غير متصل";
+        connectionDot.className = "dot " + (connected ? "ok" : "warn");
+      }
+
+      function setAuthenticatedUi(isAuthenticated) {
+        if (protectedContent) {
+          protectedContent.style.display = isAuthenticated ? "block" : "none";
+        }
+        if (fabQuickBtn) {
+          fabQuickBtn.style.display = isAuthenticated ? "" : "none";
+        }
+      }
+
+      function getDaysLabel(code) {
+        if (code === "all-week") {
+          return "طوال الأسبوع";
+        }
+        if (code === "sun-tue-thu") {
+          return "أحد - ثلاثاء - خميس";
+        }
+        return "أيام الدوام";
+      }
+
+      function normalizeZoneState(raw) {
+        var value = String(raw || "").trim().toLowerCase();
+        if (value === "offline") {
+          return "offline";
+        }
+        if (value === "busy" || value === "moderate" || value === "critical") {
+          return "busy";
+        }
+        return "stable";
+      }
+
+      function zoneStateBadgeLabel(state) {
+        if (state === "offline") {
+          return "Offline";
+        }
+        if (state === "busy") {
+          return "Busy";
+        }
+        return "Stable";
+      }
+
+      function requireSignedIn(actionLabel) {
+        if (currentUser) {
+          return true;
+        }
+        setStatus("يلزم تسجيل الدخول أولاً لتنفيذ: " + actionLabel, "warn");
+        return false;
+      }
+
+      function normalizeBus(value) {
+        if (!value) {
+          return "";
+        }
+        return String(value).toUpperCase().replace("BUS #", "").trim();
+      }
+
+      function normalizeAreaKey(value) {
+        return String(value || "").trim().toLowerCase();
+      }
+
+      function renderZonePicker(names) {
+        if (!zonePickerChips || !selectedZoneHint) {
+          return;
+        }
+
+        var unique = [];
+        var seen = {};
+        (names || []).forEach(function (name) {
+          var label = String(name || "").trim();
+          if (!label) {
+            return;
+          }
+          var key = normalizeAreaKey(label);
+          if (seen[key]) {
+            return;
+          }
+          seen[key] = true;
+          unique.push({ key: key, label: label });
+        });
+
+        if (selectedZoneKey && !seen[selectedZoneKey]) {
+          selectedZoneKey = "";
+          selectedZoneLabel = "كل المناطق";
+        }
+
+        zonePickerChips.innerHTML = "";
+
+        var allBtn = document.createElement("button");
+        allBtn.type = "button";
+        allBtn.className = "filter-btn" + (selectedZoneKey ? "" : " active");
+        allBtn.textContent = "كل المناطق";
+        allBtn.addEventListener("click", function () {
+          selectedZoneKey = "";
+          selectedZoneLabel = "كل المناطق";
+          applyZoneCardFilter();
+          renderZonePicker(names);
+        });
+        zonePickerChips.appendChild(allBtn);
+
+        unique.sort(function (a, b) {
+          return String(a.label).localeCompare(String(b.label), "ar");
+        }).forEach(function (item) {
+          var btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "filter-btn" + (selectedZoneKey === item.key ? " active" : "");
+          btn.textContent = item.label;
+          btn.addEventListener("click", function () {
+            selectedZoneKey = item.key;
+            selectedZoneLabel = item.label;
+            applyZoneCardFilter();
+            renderZonePicker(names);
+          });
+          zonePickerChips.appendChild(btn);
+        });
+
+        selectedZoneHint.textContent = "المنطقة المختارة: " + (selectedZoneLabel || "كل المناطق");
+      }
+
+      function applyZoneCardFilter() {
+        if (!zonesContainer) {
+          return;
+        }
+
+        var cards = zonesContainer.querySelectorAll(".zone-card");
+        var visibleCount = 0;
+
+        cards.forEach(function (card) {
+          var zoneKey = normalizeAreaKey(card.getAttribute("data-zone-key"));
+          var visible = !selectedZoneKey || zoneKey === selectedZoneKey;
+          card.style.display = visible ? "flex" : "none";
+          if (visible) {
+            visibleCount += 1;
+          }
+        });
+
+        if (emptyState) {
+          emptyState.style.display = visibleCount === 0 ? "block" : "none";
+          if (visibleCount === 0 && selectedZoneKey) {
+            emptyState.textContent = "لا توجد بطاقة مطابقة للمنطقة المختارة حالياً.";
+          } else {
+            emptyState.textContent = "لا توجد مناطق حالياً داخل Firestore.";
+          }
+        }
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      async function checkUserAuthorization(user) {
+        if (!db || !user) {
+          return false;
+        }
+
+        try {
+          var doc = await db.collection("authorized_users").doc(user.uid).get();
+          if (!doc.exists) {
+            return false;
+          }
+
+          var data = doc.data() || {};
+          var active = data.active !== false;
+          var configuredEmail = String(data.email || "").toLowerCase().trim();
+          var userEmail = String(user.email || "").toLowerCase().trim();
+
+          if (!active) {
+            return false;
+          }
+
+          // Optional hard check: if admin stored an email, it must match the logged user.
+          if (configuredEmail && userEmail && configuredEmail !== userEmail) {
+            return false;
+          }
+
+          return true;
+        } catch (error) {
+          console.error("خطأ التحقق من صلاحية المستخدم:", error);
+          return false;
+        }
+      }
+
+      function severityFromWaiting(waiting) {
+        if (waiting >= 20) {
+          return "critical";
+        }
+        if (waiting >= 10) {
+          return "moderate";
+        }
+        return "stable";
+      }
+
+      function getStudentsWaitingValue(data) {
+        var value = Number(data && data.studentsWaiting);
+        if (!Number.isFinite(value) || value < 0) {
+          return 0;
+        }
+        return Math.floor(value);
+      }
+
+      function startZonesPollingFallback() {
+        if (zonesPollingTimer) {
+          window.clearInterval(zonesPollingTimer);
+          zonesPollingTimer = null;
+        }
+
+        zonesPollingTimer = window.setInterval(async function () {
+          if (!db || !currentUser) {
+            return;
+          }
+
+          try {
+            var snapshot = await db.collection("zones").get();
+            renderZones(snapshot.docs || []);
+          } catch (error) {
+            console.warn("Zones polling fallback failed:", error);
+          }
+        }, 3000);
+      }
+
+      function isZoneDeleted(raw) {
+        if (typeof raw === "boolean") {
+          return raw;
+        }
+        if (typeof raw === "number") {
+          return raw !== 0;
+        }
+        if (typeof raw === "string") {
+          var value = raw.trim().toLowerCase();
+          return value === "true" || value === "1";
+        }
+        return false;
+      }
+
+      function formatTime(date) {
+        return date.toLocaleTimeString("ar-JO", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit"
+        });
+      }
+
+      function getConfigFromPageOrStorage() {
+        var fromPage = window.WAYFINDER_FIREBASE_CONFIG || {};
+        var fromStorage = {};
+
+        try {
+          var raw = localStorage.getItem("WAYFINDER_FIREBASE_CONFIG");
+          if (raw) {
+            fromStorage = JSON.parse(raw);
+          }
+        } catch (error) {
+          console.warn("Unable to parse local Firebase config:", error);
+        }
+
+        // Source priority:
+        // 1) config from page (window.WAYFINDER_FIREBASE_CONFIG)
+        // 2) config saved locally by user
+        // 3) optional app defaults (empty by default)
+        var cfg = Object.assign({}, APP_FIREBASE_DEFAULT_CONFIG, fromStorage, fromPage);
+        var hasRequired = !!(
+          cfg.apiKey &&
+          cfg.projectId &&
+          cfg.messagingSenderId
+        );
+
+        return {
+          config: cfg,
+          hasRequired: hasRequired
+        };
+      }
+
+      function stopListening() {
+        if (typeof unsubscribe === "function") {
+          unsubscribe();
+          unsubscribe = null;
+        }
+
+        if (typeof unsubscribeLeaderMeta === "function") {
+          unsubscribeLeaderMeta();
+          unsubscribeLeaderMeta = null;
+        }
+
+        if (zonesPollingTimer) {
+          window.clearInterval(zonesPollingTimer);
+          zonesPollingTimer = null;
+        }
+
+        latestZoneDocs = [];
+
+        clearAllDepartedAutoRemoveTimers();
+      }
+
+      function setZoneViewFilter(next) {
+        zoneViewFilter = next;
+        filterAllBtn.classList.toggle("active", next === "all");
+        filterActiveBtn.classList.toggle("active", next === "active");
+        filterDeletedBtn.classList.toggle("active", next === "deleted");
+        applyZoneFilterVisibility();
+      }
+
+      function applyZoneFilterVisibility() {
+        if (!zonesContainer || !deletedZonesContainer) {
+          return;
+        }
+
+        var showActive = zoneViewFilter === "all" || zoneViewFilter === "active";
+        var showDeleted = zoneViewFilter === "all" || zoneViewFilter === "deleted";
+
+        zonesContainer.style.display = showActive ? "grid" : "none";
+        deletedZonesContainer.style.display = showDeleted ? "grid" : "none";
+
+        if (zoneViewFilter === "active") {
+          deletedEmptyState.style.display = "none";
+        }
+        if (zoneViewFilter === "deleted") {
+          emptyState.style.display = "none";
+        }
+      }
+
+      function renderLeaderMeta(data) {
+        var safeData = data || {};
+        systemStatusInput.value = String(safeData.systemStatus || "System Live");
+        campusConnectivityInput.value = String(safeData.campusConnectivity || "98% Uptime");
+        fleetStatusInput.value = String(safeData.fleetStatus || "NO BUS ASSIGNED");
+      }
+
+      function startLeaderMetaListening() {
+        if (!db) {
+          return;
+        }
+
+        if (typeof unsubscribeLeaderMeta === "function") {
+          unsubscribeLeaderMeta();
+          unsubscribeLeaderMeta = null;
+        }
+
+        unsubscribeLeaderMeta = db
+          .collection("leaderDashboard")
+          .doc("current")
+          .onSnapshot(
+            function (doc) {
+              var data = doc.exists ? doc.data() : null;
+              renderLeaderMeta(data);
+            },
+            function (error) {
+              console.error(error);
+              setStatus("خطأ تحميل بيانات القائد العامة: " + (error.message || ""), "error");
+            }
+          );
+      }
+
+      async function saveLeaderMeta() {
+        if (!db) {
+          setStatus("Firebase غير مهيأ.", "warn");
+          return;
+        }
+        if (!requireSignedIn("حفظ بيانات القائد")) {
+          return;
+        }
+
+        var payload = {
+          systemStatus: systemStatusInput.value.trim() || "System Live",
+          campusConnectivity: campusConnectivityInput.value.trim() || "98% Uptime",
+          fleetStatus: fleetStatusInput.value.trim() || "NO BUS ASSIGNED",
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        try {
+          await db.collection("leaderDashboard").doc("current").set(payload, { merge: true });
+          setStatus("تم حفظ بيانات القائد العامة.", "ok");
+        } catch (error) {
+          console.error(error);
+          setStatus("فشل حفظ بيانات القائد العامة: " + (error.message || "خطأ غير معروف"), "error");
+        }
+      }
+
+      function renderZoneNames(names) {
+        zoneNamesContainer.innerHTML = "";
+
+        if (!names.length) {
+          zoneNamesEmpty.style.display = "block";
+          return;
+        }
+
+        zoneNamesEmpty.style.display = "none";
+
+        names.forEach(function (name) {
+          var chip = document.createElement("span");
+          chip.className = "name-chip";
+          chip.textContent = name;
+          zoneNamesContainer.appendChild(chip);
+        });
+      }
+
+      function renderZones(docs) {
+        latestZoneDocs = Array.isArray(docs) ? docs.slice() : [];
+        zonesContainer.innerHTML = "";
+        deletedZonesContainer.innerHTML = "";
+        clearAllDepartedAutoRemoveTimers();
+
+        var activeDocs = [];
+        var deletedDocs = [];
+
+        docs.forEach(function (doc) {
+          var data = doc.data() || {};
+          if (isZoneDeleted(data.isDeleted)) {
+            deletedDocs.push(doc);
+          } else {
+            activeDocs.push(doc);
+          }
+        });
+
+        if (!activeDocs.length) {
+          emptyState.style.display = "block";
+          zonesCount.textContent = "0";
+          waitingCount.textContent = "0";
+          criticalCount.textContent = "0";
+          activeBusesCount.textContent = "0";
+          unassignedZonesCount.textContent = "غير مخصصة: 0";
+          renderZoneNames([]);
+        } else {
+          emptyState.style.display = "none";
+        }
+
+        renderZonePicker(activeDocs.map(function (doc) {
+          var data = doc.data() || {};
+          return data.name || doc.id;
+        }));
+
+        if (!deletedDocs.length) {
+          deletedEmptyState.style.display = "block";
+          deletedZonesCount.textContent = "0";
+        } else {
+          deletedEmptyState.style.display = "none";
+          deletedZonesCount.textContent = String(deletedDocs.length);
+        }
+
+        if (!activeDocs.length && !deletedDocs.length) {
+          waitingCount.textContent = "0";
+          activeBusesCount.textContent = "0";
+          unassignedZonesCount.textContent = "غير مخصصة: 0";
+          lastUpdate.textContent = formatTime(new Date());
+          return;
+        }
+
+        var waitingTotal = 0;
+        var criticalTotal = 0;
+        var activeBusesTotal = 0;
+        var unassignedZonesTotal = 0;
+        var allZoneNames = [];
+
+        activeDocs.forEach(function (doc) {
+          var data = doc.data() || {};
+          var zoneName = data.name || doc.id;
+          var waiting = getStudentsWaitingValue(data);
+          if (!Number.isFinite(waiting) || waiting < 0) {
+            waiting = 0;
+          }
+          
+          console.log(
+            `📊 Zone ${zoneName}: studentsWaiting=${data.studentsWaiting}, ` +
+            `parsed_waiting=${waiting}, severity=${severityFromWaiting(waiting)}`
+          );
+
+          var severity = severityFromWaiting(waiting);
+          waitingTotal += waiting;
+          if (severity === "critical" || severity === "moderate") {
+            criticalTotal += 1;
+          }
+
+          var zoneState = normalizeZoneState(data.zoneState || severity);
+          if (zoneState === "offline") {
+            severity = "critical";
+          } else if (zoneState === "busy" && severity === "stable") {
+            severity = "moderate";
+          }
+
+          var buses = Array.isArray(data.assignedBuses)
+            ? data.assignedBuses.map(function (b) {
+                return normalizeBus(b);
+              }).filter(Boolean)
+            : [];
+
+          if (!buses.length) {
+            var singleBus = normalizeBus(data.assignedBus || "");
+            if (singleBus) {
+              buses = [singleBus];
+            }
+          }
+
+          var primaryBus = buses.length ? buses[0] : "";
+          var departedBuses = Array.isArray(data.departedBuses)
+            ? data.departedBuses.map(function (b) {
+                return normalizeBus(b);
+              }).filter(Boolean)
+            : [];
+
+          if (!departedBuses.length && data.departed && primaryBus) {
+            departedBuses = [primaryBus];
+          }
+
+          departedBuses = departedBuses.filter(function (bus) {
+            return buses.indexOf(bus) !== -1;
+          });
+          var departedAtByBus = normalizeDepartedAtByBus(data.departedAtByBus, buses);
+
+          if (primaryBus) {
+            activeBusesTotal += 1;
+          } else {
+            unassignedZonesTotal += 1;
+          }
+
+          var daysCode = String(data.primaryDays || "workdays");
+          var daysLabel = getDaysLabel(daysCode);
+          allZoneNames.push(zoneName);
+
+          departedBuses.forEach(function (departedBus) {
+            var departedAt = departedAtByBus[departedBus];
+            if (!departedAt && data.departed && buses.length && departedBus === buses[0]) {
+              departedAt = Number(data.departedAt || 0);
+            }
+            scheduleDepartedBusAutoRemove(doc.id, departedBus, departedAt);
+          });
+
+          var busRowsHtml = buses.map(function (bus, index) {
+            var isPrimaryBus = index === 0;
+            var isDeparted = departedBuses.indexOf(bus) !== -1;
+            return (
+              '<div class="bus-row' + (isPrimaryBus ? ' bus-row-main' : '') + '">' +
+                '<div class="bus-row-label">BUS #' + escapeHtml(bus) + (isPrimaryBus ? ' (رئيسي)' : '') + '</div>' +
+                '<div class="bus-row-actions">' +
+                  (isDeparted
+                    ? '<span class="bus-state">غادر</span>'
+                    : '<button class="tiny" data-action="mark-departed-bus" data-bus="' + escapeHtml(bus) + '">طلع</button>') +
+                  '<button class="tiny danger" data-action="remove-bus" data-bus="' + escapeHtml(bus) + '">حذف</button>' +
+                '</div>' +
+              '</div>'
+            );
+          }).join("");
+
+          var card = document.createElement("article");
+          card.className = "zone-card";
+          card.setAttribute("data-zone-key", normalizeAreaKey(zoneName));
+          card.innerHTML =
+            '<div class="zone-head">' +
+              '<h3 class="zone-name">' + escapeHtml(zoneName) + "</h3>" +
+              '<span class="severity ' + severity + '">' + zoneStateBadgeLabel(zoneState) + "</span>" +
+            "</div>" +
+            '<div class="card-actions">' +
+              '<span class="tiny">' + waiting + ' طلاب</span>' +
+              (primaryBus
+                ? '<span class="tiny">BUS #' + escapeHtml(primaryBus) + '</span>'
+                : '<span class="tiny danger">بدون باص</span>') +
+              (buses.length > 1
+                ? '<span class="bus-extra-count">+' + String(buses.length - 1) + '</span>'
+                : '') +
+              (primaryBus && departedBuses.indexOf(primaryBus) !== -1
+                ? '<span class="tiny">غادر</span>'
+                : '') +
+            '</div>' +
+            '<div class="card-grid">' +
+              '<div class="field">' +
+                '<label>اسم المنطقة</label>' +
+                '<input class="input" data-role="name" value="' + escapeHtml(zoneName) + '" />' +
+              "</div>" +
+              '<div class="field">' +
+                '<label>عدد الطلاب (من التطبيق)</label>' +
+                '<div class="input" data-role="waiting-display">' + waiting + '</div>' +
+              "</div>" +
+              '<div class="field">' +
+                '<label>أيام التشغيل (من التطبيق)</label>' +
+                '<input class="input" value="' + escapeHtml(daysLabel) + '" readonly />' +
+              "</div>" +
+              '<div class="field">' +
+                '<label>الحالة (من التطبيق)</label>' +
+                '<input class="input" value="' + escapeHtml(zoneStateBadgeLabel(zoneState)) + '" readonly />' +
+              "</div>" +
+              '<div class="field">' +
+                '<label>رقم الحافلة</label>' +
+                '<input class="input" data-role="bus" value="' + escapeHtml(primaryBus) + '" placeholder="12" />' +
+              "</div>" +
+              '<div class="field">' +
+                '<label>كل الباصات (مفصولة بفاصلة)</label>' +
+                '<input class="input" data-role="buses" value="' + escapeHtml(buses.join(",")) + '" placeholder="12,18" />' +
+              "</div>" +
+              '<input type="hidden" data-role="departed-buses" value="' + escapeHtml(departedBuses.join(",")) + '" />' +
+            "</div>" +
+            '<div class="muted">الأيام الأساسية: ' + escapeHtml(daysLabel) + "</div>" +
+            (busRowsHtml
+              ? '<div class="bus-list">' + busRowsHtml + '</div>'
+              : '') +
+            '<div class="card-actions">' +
+              '<button class="tiny" data-action="save">تعديل</button>' +
+              '<button class="tiny" data-action="dispatch">تعيين باص رئيسي</button>' +
+              '<button class="tiny" data-action="add-bus">إضافة باص</button>' +
+              (primaryBus && departedBuses.indexOf(primaryBus) === -1
+                ? '<button class="tiny" data-action="mark-departed">طلع الباص الرئيسي</button>'
+                : '') +
+              (primaryBus
+                ? '<button class="tiny danger" data-action="remove-all-buses">حذف كل الباصات</button>'
+                : '') +
+              '<button class="tiny danger" data-action="delete">حذف</button>' +
+            "</div>" +
+            '<div class="muted">معرف المستند: ' + escapeHtml(doc.id) + "</div>";
+
+          wireCardActions(card, doc.id);
+          zonesContainer.appendChild(card);
+        });
+
+        deletedDocs.forEach(function (doc) {
+          var data = doc.data() || {};
+          var zoneName = data.name || doc.id;
+          var card = document.createElement("article");
+          card.className = "zone-card";
+          card.innerHTML =
+            '<div class="zone-head">' +
+              '<h3 class="zone-name">' + escapeHtml(zoneName) + "</h3>" +
+              '<span class="severity critical">محذوفة</span>' +
+            "</div>" +
+            '<div class="card-actions">' +
+              '<button class="tiny" data-action="restore">استرجاع</button>' +
+              '<button class="tiny danger" data-action="hard-delete">حذف نهائي</button>' +
+            "</div>" +
+            '<div class="muted">معرف المستند: ' + escapeHtml(doc.id) + "</div>";
+
+          wireDeletedCardActions(card, doc.id, zoneName);
+          deletedZonesContainer.appendChild(card);
+        });
+
+        zonesCount.textContent = String(activeDocs.length);
+        console.log(`✅ Final waiting total: ${waitingTotal} (from ${activeDocs.length} active zones)`);
+        waitingCount.textContent = String(waitingTotal);
+        activeBusesCount.textContent = String(activeBusesTotal);
+        unassignedZonesCount.textContent = "غير مخصصة: " + String(unassignedZonesTotal);
+        criticalCount.textContent = String(criticalTotal);
+        lastUpdate.textContent = formatTime(new Date());
+        renderZoneNames(allZoneNames.sort(function (a, b) {
+          return String(a).localeCompare(String(b), "ar");
+        }));
+
+        applyZoneCardFilter();
+
+        applyZoneFilterVisibility();
+      }
+
+      async function seedDefaultZoneNames() {
+        if (!db) {
+          setStatus("Firebase غير مهيأ.", "warn");
+          return;
+        }
+        if (!requireSignedIn("زرع المناطق الافتراضية")) {
+          return;
+        }
+
+        try {
+          var firstDoc = await db.collection("zones").limit(1).get();
+          if (!firstDoc.empty) {
+            setStatus("المناطق موجودة بالفعل في فايرستور.", "ok");
+            return;
+          }
+
+          var batch = db.batch();
+          DEFAULT_ZONE_NAMES.forEach(function (name, index) {
+            var docId = String(index + 1);
+            var ref = db.collection("zones").doc(docId);
+            batch.set(ref, {
+              name: name,
+              studentsWaiting: 0,
+              severity: "stable",
+              zoneState: "stable",
+              primaryDays: "workdays",
+              assignedBus: null,
+              departed: false,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+          });
+
+          await batch.commit();
+          setStatus("تم زرع أسماء المناطق الافتراضية في Firebase.", "ok");
+          showToast("تم زرع المناطق الافتراضية", "ok");
+        } catch (error) {
+          console.error(error);
+          setStatus("فشل زرع المناطق: " + (error.message || "خطأ غير معروف"), "error");
+        }
+      }
+
+      function parseBuses(raw) {
+        if (!raw) {
+          return [];
+        }
+        return String(raw)
+          .split(",")
+          .map(function (bus) {
+            return normalizeBus(bus);
+          })
+          .filter(Boolean);
+      }
+
+      function normalizeDepartedAtByBus(raw, buses) {
+        var map = {};
+        if (!raw || typeof raw !== "object") {
+          return map;
+        }
+
+        Object.keys(raw).forEach(function (key) {
+          var bus = normalizeBus(key);
+          var value = Number(raw[key]);
+          if (!bus || buses.indexOf(bus) === -1 || !Number.isFinite(value) || value <= 0) {
+            return;
+          }
+          map[bus] = Math.floor(value);
+        });
+
+        return map;
+      }
+
+      function getBusTimerKey(docId, busNumber) {
+        return String(docId) + "|" + normalizeBus(busNumber);
+      }
+
+      function cancelDepartedBusAutoRemove(docId, busNumber) {
+        var key = getBusTimerKey(docId, busNumber);
+        var timer = departedAutoRemoveTimers[key];
+        if (timer) {
+          window.clearTimeout(timer);
+          delete departedAutoRemoveTimers[key];
+        }
+      }
+
+      function clearAllDepartedAutoRemoveTimers() {
+        Object.keys(departedAutoRemoveTimers).forEach(function (key) {
+          window.clearTimeout(departedAutoRemoveTimers[key]);
+        });
+        departedAutoRemoveTimers = {};
+      }
+
+      async function autoRemoveDepartedBus(docId, busNumber) {
+        cancelDepartedBusAutoRemove(docId, busNumber);
+
+        if (!db) {
+          return;
+        }
+
+        var normalizedBus = normalizeBus(busNumber);
+        if (!normalizedBus) {
+          return;
+        }
+
+        try {
+          var snap = await db.collection("zones").doc(docId).get();
+          if (!snap.exists) {
+            return;
+          }
+
+          var data = snap.data() || {};
+          if (isZoneDeleted(data.isDeleted)) {
+            return;
+          }
+
+          var buses = Array.isArray(data.assignedBuses)
+            ? data.assignedBuses.map(function (b) {
+                return normalizeBus(b);
+              }).filter(Boolean)
+            : [];
+
+          if (!buses.length) {
+            var singleBus = normalizeBus(data.assignedBus || "");
+            if (singleBus) {
+              buses = [singleBus];
+            }
+          }
+
+          var departedBuses = Array.isArray(data.departedBuses)
+            ? data.departedBuses.map(function (b) {
+                return normalizeBus(b);
+              }).filter(Boolean)
+            : [];
+
+          if (!departedBuses.length && data.departed && buses.length) {
+            departedBuses = [buses[0]];
+          }
+
+          if (buses.indexOf(normalizedBus) === -1 || departedBuses.indexOf(normalizedBus) === -1) {
+            return;
+          }
+
+          var nextBuses = buses.filter(function (bus) {
+            return bus !== normalizedBus;
+          });
+          var nextDepartedBuses = departedBuses.filter(function (bus) {
+            return bus !== normalizedBus;
+          });
+
+          var departedAtByBusSource = normalizeDepartedAtByBus(
+            data.departedAtByBus,
+            buses
+          );
+          delete departedAtByBusSource[normalizedBus];
+
+          var payload = buildBusSyncPayload(
+            nextBuses,
+            nextDepartedBuses,
+            departedAtByBusSource
+          );
+          await db.collection("zones").doc(docId).set(payload, { merge: true });
+          showToast("تم حذف الباص " + normalizedBus + " تلقائيًا بعد المغادرة", "warn");
+        } catch (error) {
+          console.error(error);
+          setStatus("فشل حذف الباص تلقائيًا: " + (error.message || "خطأ غير معروف"), "error");
+        }
+      }
+
+      function scheduleDepartedBusAutoRemove(docId, busNumber, departedAtMillis) {
+        cancelDepartedBusAutoRemove(docId, busNumber);
+
+        var normalizedBus = normalizeBus(busNumber);
+        if (!normalizedBus) {
+          return;
+        }
+
+        var startedAt = Number(departedAtMillis);
+        if (!Number.isFinite(startedAt) || startedAt <= 0) {
+          startedAt = Date.now();
+        }
+
+        var remaining = DEPARTED_AUTO_REMOVE_DELAY_MS - (Date.now() - startedAt);
+        if (remaining <= 0) {
+          autoRemoveDepartedBus(docId, normalizedBus);
+          return;
+        }
+
+        var key = getBusTimerKey(docId, normalizedBus);
+        departedAutoRemoveTimers[key] = window.setTimeout(function () {
+          autoRemoveDepartedBus(docId, normalizedBus);
+        }, remaining);
+      }
+
+      function getCardBusesState(card) {
+        var busesRawInput = card.querySelector('[data-role="buses"]');
+        var primaryBusInput = card.querySelector('[data-role="bus"]');
+        var departedRawInput = card.querySelector('[data-role="departed-buses"]');
+
+        var buses = parseBuses(busesRawInput ? busesRawInput.value : "");
+        var primaryBus = normalizeBus(primaryBusInput ? primaryBusInput.value : "");
+
+        if (primaryBus && buses.indexOf(primaryBus) === -1) {
+          buses.unshift(primaryBus);
+        }
+
+        var departedBuses = parseBuses(departedRawInput ? departedRawInput.value : "").filter(function (bus) {
+          return buses.indexOf(bus) !== -1;
+        });
+
+        return {
+          buses: buses,
+          departedBuses: departedBuses
+        };
+      }
+
+      function setCardBusesState(card, buses, departedBuses) {
+        var filteredDeparted = departedBuses.filter(function (bus) {
+          return buses.indexOf(bus) !== -1;
+        });
+
+        var primaryBusInput = card.querySelector('[data-role="bus"]');
+        var busesRawInput = card.querySelector('[data-role="buses"]');
+        var departedRawInput = card.querySelector('[data-role="departed-buses"]');
+
+        if (primaryBusInput) {
+          primaryBusInput.value = buses.length ? buses[0] : "";
+        }
+        if (busesRawInput) {
+          busesRawInput.value = buses.join(",");
+        }
+        if (departedRawInput) {
+          departedRawInput.value = filteredDeparted.join(",");
+        }
+      }
+
+      function buildBusSyncPayload(buses, departedBuses, departedAtByBusSource) {
+        var payload = {
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        if (buses.length) {
+          payload.assignedBus = buses[0];
+          payload.assignedBuses = buses;
+        } else {
+          payload.assignedBus = firebase.firestore.FieldValue.delete();
+          payload.assignedBuses = firebase.firestore.FieldValue.delete();
+        }
+
+        var primaryDeparted = buses.length > 0 && departedBuses.indexOf(buses[0]) !== -1;
+        payload.departed = primaryDeparted;
+        var safeDepartedAtByBusSource = departedAtByBusSource || {};
+        payload.departedAt = primaryDeparted
+          ? (safeDepartedAtByBusSource[buses[0]] || Date.now())
+          : firebase.firestore.FieldValue.delete();
+
+        if (departedBuses.length) {
+          payload.departedBuses = departedBuses;
+          var departedAtByBus = {};
+          departedBuses.forEach(function (bus) {
+            departedAtByBus[bus] = safeDepartedAtByBusSource[bus] || Date.now();
+          });
+          payload.departedAtByBus = departedAtByBus;
+        } else {
+          payload.departedBuses = firebase.firestore.FieldValue.delete();
+          payload.departedAtByBus = firebase.firestore.FieldValue.delete();
+        }
+
+        return payload;
+      }
+
+      async function syncBusState(docId, card, buses, departedBuses) {
+        setCardBusesState(card, buses, departedBuses);
+        var payload = buildBusSyncPayload(buses, departedBuses, {});
+        await db.collection("zones").doc(docId).set(payload, { merge: true });
+      }
+
+      async function saveZone(docId, card) {
+        if (!db) {
+          return;
+        }
+        if (!requireSignedIn("حفظ المنطقة")) {
+          return;
+        }
+
+        var nameValue = card.querySelector('[data-role="name"]').value.trim();
+        var busValue = normalizeBus(card.querySelector('[data-role="bus"]').value.trim());
+        var busesValue = parseBuses(card.querySelector('[data-role="buses"]').value.trim());
+
+        if (busValue && !busesValue.length) {
+          busesValue = [busValue];
+        }
+
+        var payload = {
+          name: nameValue || docId,
+          assignedBus: busValue || null,
+          assignedBuses: busesValue,
+          isDeleted: false,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        if (!busesValue.length) {
+          payload.assignedBuses = firebase.firestore.FieldValue.delete();
+        }
+
+        try {
+          await db.collection("zones").doc(docId).set(payload, { merge: true });
+          setStatus("تم حفظ التعديل بنجاح.", "ok");
+          showToast("تم تحديث بيانات المنطقة", "ok");
+        } catch (error) {
+          console.error(error);
+          setStatus("فشل الحفظ: " + (error.message || "خطأ غير معروف"), "error");
+        }
+      }
+
+      async function deleteZone(docId) {
+        if (!db) {
+          return;
+        }
+        if (!requireSignedIn("حذف المنطقة")) {
+          return;
+        }
+
+        if (!window.confirm("سيتم نقل المنطقة إلى قائمة المناطق المحذوفة. متابعة؟")) {
+          return;
+        }
+
+        try {
+          await db.collection("zones").doc(docId).set(
+            {
+              isDeleted: true,
+              deletedAt: Date.now(),
+              studentsWaiting: 0,
+              severity: "stable",
+              zoneState: "offline",
+              assignedBus: firebase.firestore.FieldValue.delete(),
+              assignedBuses: firebase.firestore.FieldValue.delete(),
+              departed: false,
+              departedAt: firebase.firestore.FieldValue.delete(),
+              departedBuses: firebase.firestore.FieldValue.delete(),
+              departedAtByBus: firebase.firestore.FieldValue.delete(),
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            },
+            { merge: true }
+          );
+          setStatus("تم نقل المنطقة إلى المحذوفات.", "ok");
+          showToast("تم نقل المنطقة إلى المحذوفات", "warn");
+        } catch (error) {
+          console.error(error);
+          setStatus("فشل نقل المنطقة للمحذوفات: " + (error.message || "خطأ غير معروف"), "error");
+        }
+      }
+
+      async function restoreZone(docId, zoneName) {
+        if (!db) {
+          return;
+        }
+        if (!requireSignedIn("استرجاع المنطقة")) {
+          return;
+        }
+
+        try {
+          await db.collection("zones").doc(docId).set(
+            {
+              isDeleted: false,
+              deletedAt: firebase.firestore.FieldValue.delete(),
+              studentsWaiting: 0,
+              severity: "stable",
+              zoneState: "stable",
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            },
+            { merge: true }
+          );
+          setStatus("تم استرجاع المنطقة: " + zoneName, "ok");
+          showToast("تم استرجاع المنطقة: " + zoneName, "ok");
+        } catch (error) {
+          console.error(error);
+          setStatus("فشل استرجاع المنطقة: " + (error.message || "خطأ غير معروف"), "error");
+        }
+      }
+
+      async function deleteZonePermanently(docId, zoneName) {
+        if (!db) {
+          return;
+        }
+        if (!requireSignedIn("الحذف النهائي")) {
+          return;
+        }
+
+        if (!window.confirm("هل تريد حذف المنطقة نهائياً: " + zoneName + "؟ لا يمكن التراجع.")) {
+          return;
+        }
+
+        try {
+          await db.collection("zones").doc(docId).delete();
+          setStatus("تم الحذف النهائي للمنطقة: " + zoneName, "ok");
+          showToast("حذف نهائي: " + zoneName, "warn");
+        } catch (error) {
+          console.error(error);
+          setStatus("فشل الحذف النهائي: " + (error.message || "خطأ غير معروف"), "error");
+        }
+      }
+
+      async function dispatchToBus(docId, card) {
+        if (!db) {
+          return;
+        }
+        if (!requireSignedIn("نقل للحافلة")) {
+          return;
+        }
+
+        var current = String(card.querySelector('[data-role="bus"]').value || "");
+        var nextBus = window.prompt("أدخل رقم الحافلة:", current);
+        if (nextBus === null) {
+          return;
+        }
+
+        var normalized = normalizeBus(nextBus);
+        if (!normalized) {
+          setStatus("رقم الحافلة مطلوب.", "warn");
+          showToast("رقم الحافلة مطلوب", "warn");
+          return;
+        }
+
+        card.querySelector('[data-role="bus"]').value = normalized;
+        card.querySelector('[data-role="buses"]').value = normalized;
+        var departedInput = card.querySelector('[data-role="departed-buses"]');
+        if (departedInput) {
+          departedInput.value = "";
+        }
+        await saveZone(docId, card);
+        showToast("تم نقل المنطقة للحافلة " + normalized, "ok");
+      }
+
+      async function addBusToZone(docId, card) {
+        if (!db) {
+          return;
+        }
+        if (!requireSignedIn("إضافة باص")) {
+          return;
+        }
+
+        var nextBus = window.prompt("أدخل رقم الباص لإضافته:", "");
+        if (nextBus === null) {
+          return;
+        }
+
+        var normalized = normalizeBus(nextBus);
+        if (!normalized) {
+          setStatus("رقم الباص مطلوب.", "warn");
+          showToast("رقم الباص مطلوب", "warn");
+          return;
+        }
+
+        var state = getCardBusesState(card);
+        var buses = state.buses.slice();
+        var departedBuses = state.departedBuses.slice();
+
+        if (buses.indexOf(normalized) !== -1) {
+          setStatus("هذا الباص موجود بالفعل في المنطقة.", "warn");
+          showToast("هذا الباص موجود بالفعل", "warn");
+          return;
+        }
+
+        buses.push(normalized);
+
+        try {
+          await syncBusState(docId, card, buses, departedBuses);
+          setStatus("تمت إضافة الباص بنجاح.", "ok");
+          showToast("تمت إضافة الباص " + normalized, "ok");
+        } catch (error) {
+          console.error(error);
+          setStatus("فشل إضافة الباص: " + (error.message || "خطأ غير معروف"), "error");
+        }
+      }
+
+      async function markSpecificBusDeparted(docId, card, busNumber) {
+        if (!db) {
+          return;
+        }
+        if (!requireSignedIn("تعليم الباص كمغادر")) {
+          return;
+        }
+
+        var normalized = normalizeBus(busNumber);
+        if (!normalized) {
+          return;
+        }
+
+        var state = getCardBusesState(card);
+        var buses = state.buses.slice();
+        var departedBuses = state.departedBuses.slice();
+
+        if (buses.indexOf(normalized) === -1) {
+          buses.push(normalized);
+        }
+        if (departedBuses.indexOf(normalized) === -1) {
+          departedBuses.push(normalized);
+        }
+
+        try {
+          await syncBusState(docId, card, buses, departedBuses);
+          setStatus("تم تعليم الباص كمغادر.", "ok");
+          showToast("تم تعليم الباص " + normalized + " كمغادر", "ok");
+        } catch (error) {
+          console.error(error);
+          setStatus("فشل تحديث مغادرة الباص: " + (error.message || "خطأ غير معروف"), "error");
+        }
+      }
+
+      async function removeSpecificBus(docId, card, busNumber) {
+        if (!db) {
+          return;
+        }
+        if (!requireSignedIn("حذف باص")) {
+          return;
+        }
+
+        var normalized = normalizeBus(busNumber);
+        if (!normalized) {
+          return;
+        }
+
+        var state = getCardBusesState(card);
+        var buses = state.buses.filter(function (bus) {
+          return bus !== normalized;
+        });
+        var departedBuses = state.departedBuses.filter(function (bus) {
+          return bus !== normalized;
+        });
+
+        try {
+          await syncBusState(docId, card, buses, departedBuses);
+          setStatus("تم حذف الباص من المنطقة.", "ok");
+          showToast("تم حذف الباص " + normalized, "warn");
+        } catch (error) {
+          console.error(error);
+          setStatus("فشل حذف الباص: " + (error.message || "خطأ غير معروف"), "error");
+        }
+      }
+
+      async function removeAllBuses(docId, card) {
+        if (!db) {
+          return;
+        }
+        if (!requireSignedIn("حذف كل الباصات")) {
+          return;
+        }
+
+        var confirmed = window.confirm("هل تريد حذف كل باصات هذه المنطقة؟");
+        if (!confirmed) {
+          return;
+        }
+
+        try {
+          await syncBusState(docId, card, [], []);
+          setStatus("تم حذف كل الباصات من المنطقة.", "ok");
+          showToast("تم حذف كل الباصات", "warn");
+        } catch (error) {
+          console.error(error);
+          setStatus("فشل حذف الباصات: " + (error.message || "خطأ غير معروف"), "error");
+        }
+      }
+
+      function wireCardActions(card, docId) {
+        card.querySelector('[data-action="save"]').addEventListener("click", function () {
+          saveZone(docId, card);
+        });
+
+        card.querySelector('[data-action="dispatch"]').addEventListener("click", function () {
+          dispatchToBus(docId, card);
+        });
+
+        var markDepartedPrimaryBtn = card.querySelector('[data-action="mark-departed"]');
+        if (markDepartedPrimaryBtn) {
+          markDepartedPrimaryBtn.addEventListener("click", function () {
+            var currentPrimary = normalizeBus(card.querySelector('[data-role="bus"]').value || "");
+            if (!currentPrimary) {
+              setStatus("لا يوجد باص رئيسي لتعليمه كمغادر.", "warn");
+              return;
+            }
+            markSpecificBusDeparted(docId, card, currentPrimary);
+          });
+        }
+
+        var addBusBtn = card.querySelector('[data-action="add-bus"]');
+        if (addBusBtn) {
+          addBusBtn.addEventListener("click", function () {
+            addBusToZone(docId, card);
+          });
+        }
+
+        var removeAllBusesBtn = card.querySelector('[data-action="remove-all-buses"]');
+        if (removeAllBusesBtn) {
+          removeAllBusesBtn.addEventListener("click", function () {
+            removeAllBuses(docId, card);
+          });
+        }
+
+        card.querySelectorAll('[data-action="mark-departed-bus"]').forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var bus = btn.getAttribute("data-bus") || "";
+            markSpecificBusDeparted(docId, card, bus);
+          });
+        });
+
+        card.querySelectorAll('[data-action="remove-bus"]').forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var bus = btn.getAttribute("data-bus") || "";
+            removeSpecificBus(docId, card, bus);
+          });
+        });
+
+        card.querySelector('[data-action="delete"]').addEventListener("click", function () {
+          deleteZone(docId);
+        });
+      }
+
+      function wireDeletedCardActions(card, docId, zoneName) {
+        card.querySelector('[data-action="restore"]').addEventListener("click", function () {
+          restoreZone(docId, zoneName);
+        });
+
+        card.querySelector('[data-action="hard-delete"]').addEventListener("click", function () {
+          deleteZonePermanently(docId, zoneName);
+        });
+      }
+
+      async function addZone() {
+        if (!db) {
+          setStatus("Firebase غير مهيأ.", "warn");
+          return;
+        }
+        if (!requireSignedIn("إضافة منطقة")) {
+          return;
+        }
+
+        var name = zoneNameInput.value.trim();
+        var bus = normalizeBus(zoneBusInput.value.trim());
+
+        if (!name) {
+          setStatus("اكتب اسم المنطقة أولاً.", "warn");
+          return;
+        }
+        var data = {
+          name: name,
+          studentsWaiting: 0,
+          severity: "stable",
+          zoneState: "stable",
+          primaryDays: "workdays",
+          assignedBus: bus || null,
+          isDeleted: false,
+          departed: false,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        if (bus) {
+          data.assignedBuses = [bus];
+        }
+
+        try {
+          await db.collection("zones").add(data);
+          zoneNameInput.value = "";
+          zoneBusInput.value = "";
+          setStatus("تمت إضافة المنطقة.", "ok");
+          showToast("تمت إضافة منطقة جديدة", "ok");
+        } catch (error) {
+          console.error(error);
+          setStatus("فشل الإضافة: " + (error.message || "خطأ غير معروف"), "error");
+        }
+      }
+
+      async function startListening() {
+        if (!db) {
+          return;
+        }
+        if (!currentUser) {
+          setStatus("سجل دخولك أولاً لقراءة بيانات المناطق.", "warn");
+          return;
+        }
+
+        stopListening();
+        setStatus("متصل بفايربيس. جارٍ الاستماع للتحديثات الحية...", "ok");
+        setConnectionState(true);
+
+        try {
+          var snapshot = await db.collection("zones").limit(1).get();
+          if (snapshot.empty) {
+            await seedDefaultZoneNames();
+          }
+        } catch (error) {
+          console.error(error);
+        }
+
+        unsubscribe = db
+          .collection("zones")
+          .onSnapshot(
+            function (snapshot) {
+              if (zonesPollingTimer) {
+                window.clearInterval(zonesPollingTimer);
+                zonesPollingTimer = null;
+              }
+              renderZones(snapshot.docs);
+            },
+            function (error) {
+              console.error(error);
+              setStatus("خطأ في المزامنة اللحظية: " + (error.message || "") + " (تحقق من Firestore Rules)", "error");
+              showToast("فشل المزامنة اللحظية", "error");
+              setConnectionState(false);
+              startZonesPollingFallback();
+            }
+          );
+      }
+
+      function initFirebaseAndLoad() {
+        var source = getConfigFromPageOrStorage();
+        if (!source.hasRequired) {
+          setStatus("إعداد Firebase ناقص. افتح قسم الإعدادات وأضف القيم.", "warn");
+          setupPanel.style.display = "block";
+          return;
+        }
+
+        try {
+          if (!firebase.apps.length) {
+            firebase.initializeApp(source.config);
+          }
+          auth = firebase.auth();
+          db = firebase.firestore();
+
+          auth.onAuthStateChanged(async function (user) {
+            currentUser = user || null;
+            if (currentUser) {
+              isUserAuthorized = await checkUserAuthorization(currentUser);
+              if (!isUserAuthorized) {
+                setStatus("هذا الحساب غير مصرح له بدخول الداشبورد.", "error");
+                showToast("الحساب غير مصرح", "error");
+                await auth.signOut();
+                return;
+              }
+
+              setAuthenticatedUi(true);
+              toggleAuthPanelBtn.style.display = "none";
+              signOutBtn.style.display = "inline-block";
+              authPanel.style.display = "none";
+              setConnectionState(true);
+              setStatus(
+                "تم الربط مع Firebase وتسجيل الدخول: " + (currentUser.email || currentUser.uid),
+                "ok"
+              );
+              showToast("تم تسجيل الدخول بنجاح", "ok");
+              startLeaderMetaListening();
+              startListening();
+            } else {
+              isUserAuthorized = false;
+              setAuthenticatedUi(false);
+              toggleAuthPanelBtn.style.display = "inline-block";
+              signOutBtn.style.display = "none";
+              authPanel.style.display = "none";
+              setConnectionState(false);
+              stopListening();
+              renderZoneNames([]);
+              zonesContainer.innerHTML = "";
+              deletedZonesContainer.innerHTML = "";
+              deletedZonesCount.textContent = "0";
+              waitingCount.textContent = "0";
+              zonesCount.textContent = "0";
+              criticalCount.textContent = "0";
+              activeBusesCount.textContent = "0";
+              unassignedZonesCount.textContent = "غير مخصصة: 0";
+              setStatus("تم الربط مع Firebase. سجل دخول للمتابعة.", "warn");
+              applyZoneFilterVisibility();
+            }
+          });
+        } catch (error) {
+          console.error(error);
+          setStatus("فشل تهيئة Firebase: " + (error.message || ""), "error");
+        }
+      }
+
+      addZoneBtn.addEventListener("click", addZone);
+
+      toggleAuthPanelBtn.addEventListener("click", function () {
+        authPanel.style.display = "block";
+        emailInput.focus();
+      });
+
+      authPanel.addEventListener("click", function (e) {
+        if (e.target === authPanel) {
+          authPanel.style.display = "none";
+        }
+      });
+
+      signInBtn.addEventListener("click", async function () {
+        if (!auth) {
+          setStatus("Firebase Auth غير مهيأ.", "error");
+          return;
+        }
+        var email = emailInput.value.trim();
+        var password = passwordInput.value.trim();
+
+        if (!email || !password) {
+          setStatus("يرجى إدخال البريد الإلكتروني وكلمة المرور.", "warn");
+          return;
+        }
+
+        try {
+          await auth.signInWithEmailAndPassword(email, password);
+
+          emailInput.value = "";
+          passwordInput.value = "";
+          authPanel.style.display = "none";
+        } catch (error) {
+          console.error(error);
+          var code = String(error && error.code ? error.code : "");
+          if (code === "auth/invalid-credential" || code === "auth/invalid-login-credentials") {
+            setStatus(
+              "بيانات الدخول غير صحيحة، أو هذا الحساب لا يملك كلمة مرور (قد يكون مسجلاً عبر Google/Microsoft فقط).",
+              "error"
+            );
+          } else
+          if (code === "auth/user-not-found") {
+            setStatus("البريد الإلكتروني غير مسجل.", "error");
+          } else if (code === "auth/wrong-password") {
+            setStatus("كلمة المرور غير صحيحة.", "error");
+          } else if (code === "auth/invalid-email") {
+            setStatus("صيغة البريد الإلكتروني غير صحيحة.", "error");
+          } else {
+            setStatus("فشل تسجيل الدخول: " + (error.message || "خطأ غير معروف"), "error");
+          }
+        }
+      });
+
+      signUpBtn.addEventListener("click", function () {
+        setStatus("إنشاء الحساب غير متاح من الداشبورد. تواصل مع الإدارة لإضافة الحساب.", "warn");
+        showToast("الحسابات تُنشأ من قبل الإدارة فقط", "warn");
+      });
+
+      signOutBtn.addEventListener("click", async function () {
+        if (!auth) {
+          return;
+        }
+        try {
+          await auth.signOut();
+          setStatus("تم تسجيل الخروج.", "warn");
+        } catch (error) {
+          console.error(error);
+          setStatus("فشل تسجيل الخروج: " + (error.message || "خطأ غير معروف"), "error");
+        }
+      });
+
+      refreshBtn.addEventListener("click", function () {
+        startListening();
+        showToast("تم طلب تحديث البيانات", "ok");
+      });
+
+      seedZonesBtn.addEventListener("click", function () {
+        seedDefaultZoneNames();
+      });
+
+      saveLeaderMetaBtn.addEventListener("click", function () {
+        saveLeaderMeta();
+      });
+
+      qaAddZoneBtn.addEventListener("click", function () {
+        zoneNameInput.focus();
+        zoneNameInput.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+
+      qaAssignBusBtn.addEventListener("click", function () {
+        var firstBusInput = zonesContainer.querySelector('[data-role="bus"]');
+        if (!firstBusInput) {
+          showToast("لا توجد مناطق نشطة حالياً", "warn");
+          return;
+        }
+        firstBusInput.focus();
+        firstBusInput.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+
+      qaRefreshBtn.addEventListener("click", function () {
+        startListening();
+        showToast("جاري التحديث", "ok");
+      });
+
+      qaMapBtn.addEventListener("click", function () {
+        var isVisible = mapPanel.style.display === "block";
+        mapPanel.style.display = isVisible ? "none" : "block";
+      });
+
+      fabQuickBtn.addEventListener("click", function () {
+        document.getElementById("quickActionsPanel").scrollIntoView({
+          behavior: "smooth",
+          block: "start"
+        });
+      });
+
+      toggleSetupBtn.addEventListener("click", function () {
+        setupPanel.style.display = setupPanel.style.display === "none" ? "block" : "none";
+      });
+
+      saveConfigBtn.addEventListener("click", function () {
+        try {
+          var parsed = JSON.parse(configInput.value.trim());
+          localStorage.setItem("WAYFINDER_FIREBASE_CONFIG", JSON.stringify(parsed));
+          window.WAYFINDER_FIREBASE_CONFIG = parsed;
+          setStatus("تم حفظ إعداد Firebase محلياً. اضغط تحديث البيانات.", "ok");
+        } catch (error) {
+          setStatus("تنسيق JSON غير صحيح.", "error");
+        }
+      });
+
+      clearConfigBtn.addEventListener("click", function () {
+        localStorage.removeItem("WAYFINDER_FIREBASE_CONFIG");
+        setStatus("تم مسح إعداد Firebase المحلي.", "warn");
+      });
+
+      filterAllBtn.addEventListener("click", function () {
+        setZoneViewFilter("all");
+      });
+
+      filterActiveBtn.addEventListener("click", function () {
+        setZoneViewFilter("active");
+      });
+
+      filterDeletedBtn.addEventListener("click", function () {
+        setZoneViewFilter("deleted");
+      });
+
+      window.addEventListener("beforeunload", function () {
+        stopListening();
+      });
+
+      configInput.value = JSON.stringify(APP_FIREBASE_DEFAULT_CONFIG, null, 2);
+
+      if (window.location.search.indexOf("__firebase_request_key") !== -1) {
+        setStatus("اكتمل رجوع تسجيل الدخول، جاري التحقق من الجلسة...", "ok");
+      }
+
+      setConnectionState(false);
+      setAuthenticatedUi(false);
+      setZoneViewFilter("all");
+      initFirebaseAndLoad();
+    })();
+  </script>
+</body>
+</html>
