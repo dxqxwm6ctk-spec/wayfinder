@@ -385,6 +385,11 @@
       box-shadow: var(--glow);
     }
 
+    .zone-card.selected-zone {
+      border-color: rgba(34, 167, 224, 0.65);
+      box-shadow: 0 0 0 1px rgba(34, 167, 224, 0.35), var(--glow);
+    }
+
     .zone-head {
       display: flex;
       justify-content: space-between;
@@ -586,6 +591,89 @@
       color: #dce9ff;
     }
 
+    .waiting-students-panel {
+      margin-top: 14px;
+    }
+
+    .students-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .student-card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--paper-2);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      text-align: center;
+      box-shadow: var(--glow);
+      animation: rise-in 330ms ease both;
+    }
+
+    .student-avatar {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--brand), var(--brand-2));
+      object-fit: cover;
+      border: 2px solid #2d4061;
+    }
+
+    .student-name {
+      font-size: 0.95rem;
+      color: #e6eeff;
+      font-weight: 700;
+      margin: 0;
+      word-break: break-word;
+    }
+
+    .student-email {
+      font-size: 0.78rem;
+      color: var(--ink-soft);
+      margin: 0;
+    }
+
+    .student-meta {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      flex-wrap: wrap;
+      width: 100%;
+    }
+
+    .student-badge {
+      border: 1px solid #3a4a6b;
+      background: #18233a;
+      color: #c9daf9;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+
+    .students-empty {
+      text-align: center;
+      padding: 20px;
+      color: var(--ink-soft);
+    }
+
+    .students-count-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--brand), var(--brand-2));
+      color: #05171f;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 800;
+      margin-left: 8px;
+    }
+
     .auth-panel {
       position: fixed;
       top: 0;
@@ -651,22 +739,6 @@
       border-radius: 999px;
       font-size: 0.84rem;
       font-weight: 700;
-    }
-
-    .map-panel {
-      margin-top: 10px;
-      border: 1px solid #2d4061;
-      border-radius: 14px;
-      overflow: hidden;
-      display: none;
-      background: #0f1729;
-    }
-
-    .map-panel iframe {
-      width: 100%;
-      height: 260px;
-      border: 0;
-      display: block;
     }
 
     .fab {
@@ -799,6 +871,12 @@
 
     <div id="protectedContent" style="display:none;">
 
+    <section class="panel">
+      <h2>مناطق الباصات</h2>
+      <div id="topSelectedZoneHint" class="muted">المنطقة المختارة: كل المناطق</div>
+      <div id="topZonePickerChips" class="filter-bar" style="margin-top: 8px;"></div>
+    </section>
+
     <section class="layout">
       <section class="panel">
         <h2>الحالة المباشرة</h2>
@@ -850,33 +928,17 @@
             <span class="label">تحديث البيانات</span>
             <span class="sub">مزامنة فورية مع Firebase</span>
           </button>
-          <button id="qaMapBtn" class="qa-btn" type="button">
-            <span class="icon">M</span>
-            <span class="label">عرض الخريطة</span>
-            <span class="sub">إظهار المناطق على الخريطة</span>
-          </button>
         </div>
       </section>
     </section>
 
-    <section class="panel">
-      <h2>إدارة الحالة العامة</h2>
-      <div class="meta-grid">
-        <div class="field">
-          <label for="systemStatusInput">System Status</label>
-          <input id="systemStatusInput" class="input" type="text" placeholder="System Live" />
-        </div>
-        <div class="field">
-          <label for="campusConnectivityInput">Campus Connectivity</label>
-          <input id="campusConnectivityInput" class="input" type="text" placeholder="98% Uptime" />
-        </div>
-        <div class="field">
-          <label for="fleetStatusInput">Fleet Status</label>
-          <input id="fleetStatusInput" class="input" type="text" placeholder="NO BUS ASSIGNED" />
-        </div>
-        <button id="saveLeaderMetaBtn" class="btn-main" type="button">حفظ بيانات القائد</button>
+    <section class="panel waiting-students-panel">
+      <h2>الطلاب المنتظرون <span id="waitingStudentsCount" class="students-count-badge">0</span></h2>
+      <p class="muted">الطلاب الذين طلبوا رحلات والذين ينتظرون الباص</p>
+      <div id="waitingStudentsContainer" class="students-grid"></div>
+      <div id="studentsEmptyState" class="students-empty" style="display:none;">
+        لا يوجد طلاب منتظرون حالياً
       </div>
-      <p class="muted">يتم الحفظ داخل المستند: leaderDashboard/current</p>
     </section>
 
     <section class="panel">
@@ -892,8 +954,6 @@
         </div>
         <button id="addZoneBtn" class="btn-main" type="button">إضافة</button>
       </div>
-      <p class="muted">عدد الطلاب، الحالة، وأيام التشغيل تُجلب تلقائيًا من التطبيق ولا يتم تعديلها من الداشبورد.</p>
-
       <div class="filter-bar">
         <button id="filterAllBtn" class="filter-btn active" type="button">الكل</button>
         <button id="filterActiveBtn" class="filter-btn" type="button">النشطة فقط</button>
@@ -915,14 +975,6 @@
       <div id="deletedZonesContainer" class="zones"></div>
       <p id="deletedEmptyState" class="muted" style="display:none; margin-top: 8px;">لا توجد مناطق محذوفة حالياً.</p>
 
-      <div id="mapPanel" class="map-panel">
-        <iframe
-          title="خريطة المناطق"
-          loading="lazy"
-          referrerpolicy="no-referrer-when-downgrade"
-          src="https://www.openstreetmap.org/export/embed.html?bbox=35.83%2C31.92%2C35.96%2C32.02&amp;layer=mapnik">
-        </iframe>
-      </div>
     </section>
 
     <section class="panel">
@@ -968,18 +1020,19 @@
       var emptyState = document.getElementById("emptyState");
       var deletedZonesContainer = document.getElementById("deletedZonesContainer");
       var deletedEmptyState = document.getElementById("deletedEmptyState");
-      var mapPanel = document.getElementById("mapPanel");
       var toastHost = document.getElementById("toastHost");
       var zoneNamesContainer = document.getElementById("zoneNamesContainer");
       var zoneNamesEmpty = document.getElementById("zoneNamesEmpty");
+      var topSelectedZoneHint = document.getElementById("topSelectedZoneHint");
+      var topZonePickerChips = document.getElementById("topZonePickerChips");
       var selectedZoneHint = document.getElementById("selectedZoneHint");
       var zonePickerChips = document.getElementById("zonePickerChips");
       var setupPanel = document.getElementById("setupPanel");
       var protectedContent = document.getElementById("protectedContent");
       var configInput = document.getElementById("configInput");
-      var systemStatusInput = document.getElementById("systemStatusInput");
-      var campusConnectivityInput = document.getElementById("campusConnectivityInput");
-      var fleetStatusInput = document.getElementById("fleetStatusInput");
+      var waitingStudentsContainer = document.getElementById("waitingStudentsContainer");
+      var waitingStudentsCount = document.getElementById("waitingStudentsCount");
+      var studentsEmptyState = document.getElementById("studentsEmptyState");
 
       var zoneNameInput = document.getElementById("zoneNameInput");
       var zoneBusInput = document.getElementById("zoneBusInput");
@@ -996,7 +1049,6 @@
       var refreshBtn = document.getElementById("refreshBtn");
       var toggleSetupBtn = document.getElementById("toggleSetupBtn");
       var seedZonesBtn = document.getElementById("seedZonesBtn");
-      var saveLeaderMetaBtn = document.getElementById("saveLeaderMetaBtn");
       var saveConfigBtn = document.getElementById("saveConfigBtn");
       var clearConfigBtn = document.getElementById("clearConfigBtn");
       var filterAllBtn = document.getElementById("filterAllBtn");
@@ -1005,11 +1057,12 @@
       var qaAddZoneBtn = document.getElementById("qaAddZoneBtn");
       var qaAssignBusBtn = document.getElementById("qaAssignBusBtn");
       var qaRefreshBtn = document.getElementById("qaRefreshBtn");
-      var qaMapBtn = document.getElementById("qaMapBtn");
       var fabQuickBtn = document.getElementById("fabQuickBtn");
 
       var unsubscribe = null;
-      var unsubscribeLeaderMeta = null;
+      var unsubscribeWaitingStudents = null;
+      var unsubscribeWaitingStudentsAlt = null;
+      var unsubscribeWaitingUsers = null;
       var auth = null;
       var currentUser = null;
       var db = null;
@@ -1021,6 +1074,14 @@
       var latestZoneDocs = [];
       var selectedZoneKey = "";
       var selectedZoneLabel = "كل المناطق";
+      var waitingStudentsData = {};
+      var latestWaitingRideRequests = [];
+      var latestWaitingRideRequestsAlt = [];
+      var latestWaitingUsers = [];
+      var hasWaitingUsersSnapshot = false;
+      var hasWaitingRideRequestsError = false;
+      var hasWaitingRideRequestsAltError = false;
+      var hasWaitingUsersError = false;
 
       var APP_FIREBASE_DEFAULT_CONFIG = {
         apiKey: "AIzaSyDisWG8t1ICqiFnYvxwkyUfebA-TCJnsL4",
@@ -1146,15 +1207,19 @@
         return String(value || "").trim().toLowerCase();
       }
 
-      function renderZonePicker(names) {
-        if (!zonePickerChips || !selectedZoneHint) {
-          return;
-        }
-
+      function renderZonePicker(zoneItems) {
         var unique = [];
         var seen = {};
-        (names || []).forEach(function (name) {
-          var label = String(name || "").trim();
+        (zoneItems || []).forEach(function (item) {
+          var label = "";
+          var waiting = 0;
+          if (typeof item === "string") {
+            label = String(item || "").trim();
+          } else {
+            label = String(item && item.name || "").trim();
+            waiting = getStudentsWaitingValue(item || {});
+          }
+
           if (!label) {
             return;
           }
@@ -1163,7 +1228,7 @@
             return;
           }
           seen[key] = true;
-          unique.push({ key: key, label: label });
+          unique.push({ key: key, label: label, waiting: waiting });
         });
 
         if (selectedZoneKey && !seen[selectedZoneKey]) {
@@ -1171,37 +1236,66 @@
           selectedZoneLabel = "كل المناطق";
         }
 
-        zonePickerChips.innerHTML = "";
-
-        var allBtn = document.createElement("button");
-        allBtn.type = "button";
-        allBtn.className = "filter-btn" + (selectedZoneKey ? "" : " active");
-        allBtn.textContent = "كل المناطق";
-        allBtn.addEventListener("click", function () {
-          selectedZoneKey = "";
-          selectedZoneLabel = "كل المناطق";
-          applyZoneCardFilter();
-          renderZonePicker(names);
-        });
-        zonePickerChips.appendChild(allBtn);
-
         unique.sort(function (a, b) {
+          if (selectedZoneKey) {
+            if (a.key === selectedZoneKey && b.key !== selectedZoneKey) {
+              return -1;
+            }
+            if (b.key === selectedZoneKey && a.key !== selectedZoneKey) {
+              return 1;
+            }
+          }
+
+          if (a.waiting !== b.waiting) {
+            return b.waiting - a.waiting;
+          }
+
           return String(a.label).localeCompare(String(b.label), "ar");
-        }).forEach(function (item) {
-          var btn = document.createElement("button");
-          btn.type = "button";
-          btn.className = "filter-btn" + (selectedZoneKey === item.key ? " active" : "");
-          btn.textContent = item.label;
-          btn.addEventListener("click", function () {
-            selectedZoneKey = item.key;
-            selectedZoneLabel = item.label;
-            applyZoneCardFilter();
-            renderZonePicker(names);
-          });
-          zonePickerChips.appendChild(btn);
         });
 
-        selectedZoneHint.textContent = "المنطقة المختارة: " + (selectedZoneLabel || "كل المناطق");
+        function renderButtons(targetContainer) {
+          if (!targetContainer) {
+            return;
+          }
+
+          targetContainer.innerHTML = "";
+
+          var allBtn = document.createElement("button");
+          allBtn.type = "button";
+          allBtn.className = "filter-btn" + (selectedZoneKey ? "" : " active");
+          allBtn.textContent = "كل المناطق";
+          allBtn.addEventListener("click", function () {
+            selectedZoneKey = "";
+            selectedZoneLabel = "كل المناطق";
+            applyZoneCardFilter();
+            renderZonePicker(zoneItems);
+          });
+          targetContainer.appendChild(allBtn);
+
+          unique.forEach(function (item) {
+            var btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "filter-btn" + (selectedZoneKey === item.key ? " active" : "");
+            btn.textContent = item.label;
+            btn.addEventListener("click", function () {
+              selectedZoneKey = item.key;
+              selectedZoneLabel = item.label;
+              applyZoneCardFilter();
+              renderZonePicker(zoneItems);
+            });
+            targetContainer.appendChild(btn);
+          });
+        }
+
+        renderButtons(zonePickerChips);
+        renderButtons(topZonePickerChips);
+
+        if (selectedZoneHint) {
+          selectedZoneHint.textContent = "المنطقة المختارة: " + (selectedZoneLabel || "كل المناطق");
+        }
+        if (topSelectedZoneHint) {
+          topSelectedZoneHint.textContent = "المنطقة المختارة: " + (selectedZoneLabel || "كل المناطق");
+        }
       }
 
       function applyZoneCardFilter() {
@@ -1210,24 +1304,18 @@
         }
 
         var cards = zonesContainer.querySelectorAll(".zone-card");
-        var visibleCount = 0;
 
         cards.forEach(function (card) {
           var zoneKey = normalizeAreaKey(card.getAttribute("data-zone-key"));
-          var visible = !selectedZoneKey || zoneKey === selectedZoneKey;
-          card.style.display = visible ? "flex" : "none";
-          if (visible) {
-            visibleCount += 1;
-          }
+          var isSelected = !!selectedZoneKey && zoneKey === selectedZoneKey;
+          card.style.display = "flex";
+          card.style.order = isSelected ? "-1" : "0";
+          card.classList.toggle("selected-zone", isSelected);
         });
 
         if (emptyState) {
-          emptyState.style.display = visibleCount === 0 ? "block" : "none";
-          if (visibleCount === 0 && selectedZoneKey) {
-            emptyState.textContent = "لا توجد بطاقة مطابقة للمنطقة المختارة حالياً.";
-          } else {
-            emptyState.textContent = "لا توجد مناطق حالياً داخل Firestore.";
-          }
+          emptyState.style.display = cards.length === 0 ? "block" : "none";
+          emptyState.textContent = "لا توجد مناطق حالياً داخل Firestore.";
         }
       }
 
@@ -1368,17 +1456,34 @@
           unsubscribe = null;
         }
 
-        if (typeof unsubscribeLeaderMeta === "function") {
-          unsubscribeLeaderMeta();
-          unsubscribeLeaderMeta = null;
+
+        if (typeof unsubscribeWaitingStudents === "function") {
+          unsubscribeWaitingStudents();
+          unsubscribeWaitingStudents = null;
+        }
+
+        if (typeof unsubscribeWaitingStudentsAlt === "function") {
+          unsubscribeWaitingStudentsAlt();
+          unsubscribeWaitingStudentsAlt = null;
+        }
+
+        if (typeof unsubscribeWaitingUsers === "function") {
+          unsubscribeWaitingUsers();
+          unsubscribeWaitingUsers = null;
         }
 
         if (zonesPollingTimer) {
           window.clearInterval(zonesPollingTimer);
           zonesPollingTimer = null;
         }
-
         latestZoneDocs = [];
+        latestWaitingRideRequests = [];
+        latestWaitingRideRequestsAlt = [];
+        latestWaitingUsers = [];
+        hasWaitingUsersSnapshot = false;
+        hasWaitingRideRequestsError = false;
+        hasWaitingRideRequestsAltError = false;
+        hasWaitingUsersError = false;
 
         clearAllDepartedAutoRemoveTimers();
       }
@@ -1407,63 +1512,6 @@
         }
         if (zoneViewFilter === "deleted") {
           emptyState.style.display = "none";
-        }
-      }
-
-      function renderLeaderMeta(data) {
-        var safeData = data || {};
-        systemStatusInput.value = String(safeData.systemStatus || "System Live");
-        campusConnectivityInput.value = String(safeData.campusConnectivity || "98% Uptime");
-        fleetStatusInput.value = String(safeData.fleetStatus || "NO BUS ASSIGNED");
-      }
-
-      function startLeaderMetaListening() {
-        if (!db) {
-          return;
-        }
-
-        if (typeof unsubscribeLeaderMeta === "function") {
-          unsubscribeLeaderMeta();
-          unsubscribeLeaderMeta = null;
-        }
-
-        unsubscribeLeaderMeta = db
-          .collection("leaderDashboard")
-          .doc("current")
-          .onSnapshot(
-            function (doc) {
-              var data = doc.exists ? doc.data() : null;
-              renderLeaderMeta(data);
-            },
-            function (error) {
-              console.error(error);
-              setStatus("خطأ تحميل بيانات القائد العامة: " + (error.message || ""), "error");
-            }
-          );
-      }
-
-      async function saveLeaderMeta() {
-        if (!db) {
-          setStatus("Firebase غير مهيأ.", "warn");
-          return;
-        }
-        if (!requireSignedIn("حفظ بيانات القائد")) {
-          return;
-        }
-
-        var payload = {
-          systemStatus: systemStatusInput.value.trim() || "System Live",
-          campusConnectivity: campusConnectivityInput.value.trim() || "98% Uptime",
-          fleetStatus: fleetStatusInput.value.trim() || "NO BUS ASSIGNED",
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
-
-        try {
-          await db.collection("leaderDashboard").doc("current").set(payload, { merge: true });
-          setStatus("تم حفظ بيانات القائد العامة.", "ok");
-        } catch (error) {
-          console.error(error);
-          setStatus("فشل حفظ بيانات القائد العامة: " + (error.message || "خطأ غير معروف"), "error");
         }
       }
 
@@ -1517,7 +1565,10 @@
 
         renderZonePicker(activeDocs.map(function (doc) {
           var data = doc.data() || {};
-          return data.name || doc.id;
+          return {
+            name: data.name || doc.id,
+            studentsWaiting: data.studentsWaiting
+          };
         }));
 
         if (!deletedDocs.length) {
@@ -1541,6 +1592,32 @@
         var activeBusesTotal = 0;
         var unassignedZonesTotal = 0;
         var allZoneNames = [];
+
+        activeDocs.sort(function (a, b) {
+          var dataA = a.data() || {};
+          var dataB = b.data() || {};
+          var nameA = String(dataA.name || a.id || "");
+          var nameB = String(dataB.name || b.id || "");
+          var keyA = normalizeAreaKey(nameA);
+          var keyB = normalizeAreaKey(nameB);
+
+          if (selectedZoneKey) {
+            if (keyA === selectedZoneKey && keyB !== selectedZoneKey) {
+              return -1;
+            }
+            if (keyB === selectedZoneKey && keyA !== selectedZoneKey) {
+              return 1;
+            }
+          }
+
+          var waitingA = getStudentsWaitingValue(dataA);
+          var waitingB = getStudentsWaitingValue(dataB);
+          if (waitingA !== waitingB) {
+            return waitingB - waitingA;
+          }
+
+          return nameA.localeCompare(nameB, "ar");
+        });
 
         activeDocs.forEach(function (doc) {
           var data = doc.data() || {};
@@ -1603,8 +1680,6 @@
             unassignedZonesTotal += 1;
           }
 
-          var daysCode = String(data.primaryDays || "workdays");
-          var daysLabel = getDaysLabel(daysCode);
           allZoneNames.push(zoneName);
 
           departedBuses.forEach(function (departedBus) {
@@ -1661,24 +1736,19 @@
                 '<div class="input" data-role="waiting-display">' + waiting + '</div>' +
               "</div>" +
               '<div class="field">' +
-                '<label>أيام التشغيل (من التطبيق)</label>' +
-                '<input class="input" value="' + escapeHtml(daysLabel) + '" readonly />' +
-              "</div>" +
-              '<div class="field">' +
                 '<label>الحالة (من التطبيق)</label>' +
                 '<input class="input" value="' + escapeHtml(zoneStateBadgeLabel(zoneState)) + '" readonly />' +
               "</div>" +
               '<div class="field">' +
                 '<label>رقم الحافلة</label>' +
-                '<input class="input" data-role="bus" value="' + escapeHtml(primaryBus) + '" placeholder="12" />' +
+                '<input class="input" data-role="bus" value="' + escapeHtml(primaryBus) + '" placeholder="12" readonly />' +
               "</div>" +
               '<div class="field">' +
-                '<label>كل الباصات (مفصولة بفاصلة)</label>' +
-                '<input class="input" data-role="buses" value="' + escapeHtml(buses.join(",")) + '" placeholder="12,18" />' +
+                '<label>كل الباصات</label>' +
+                '<input class="input" data-role="buses" value="' + escapeHtml(buses.join(",")) + '" placeholder="12,18" readonly />' +
               "</div>" +
               '<input type="hidden" data-role="departed-buses" value="' + escapeHtml(departedBuses.join(",")) + '" />' +
             "</div>" +
-            '<div class="muted">الأيام الأساسية: ' + escapeHtml(daysLabel) + "</div>" +
             (busRowsHtml
               ? '<div class="bus-list">' + busRowsHtml + '</div>'
               : '') +
@@ -1692,7 +1762,7 @@
               (primaryBus
                 ? '<button class="tiny danger" data-action="remove-all-buses">حذف كل الباصات</button>'
                 : '') +
-              '<button class="tiny danger" data-action="delete">حذف</button>' +
+              '<button class="tiny danger" data-action="delete">حذف المنطقة</button>' +
             "</div>" +
             '<div class="muted">معرف المستند: ' + escapeHtml(doc.id) + "</div>";
 
@@ -2408,6 +2478,568 @@
         }
       }
 
+      function readFirstString(source, keys) {
+        for (var i = 0; i < keys.length; i += 1) {
+          var raw = source && source[keys[i]];
+          if (raw === null || raw === undefined) {
+            continue;
+          }
+          var normalized = String(raw).trim();
+          if (normalized) {
+            return normalized;
+          }
+        }
+        return "";
+      }
+
+      function normalizePhotoUrl(url) {
+        var value = String(url || "").trim();
+        if (!value) {
+          return "";
+        }
+        var isHttp = value.indexOf("http://") === 0 || value.indexOf("https://") === 0;
+        return isHttp ? value : "";
+      }
+
+      async function loadStudentProfile(studentKey) {
+        if (!db || !studentKey) {
+          return {
+            id: "",
+            name: "Student",
+            email: "",
+            photoUrl: ""
+          };
+        }
+
+        var cacheKey = String(studentKey).toLowerCase();
+        if (waitingStudentsData[cacheKey]) {
+          return waitingStudentsData[cacheKey];
+        }
+
+        var profile = {
+          id: String(studentKey),
+          name: String(studentKey),
+          email: "",
+          photoUrl: ""
+        };
+
+        try {
+          var docSnap = await db.collection("users").doc(String(studentKey)).get();
+          if (docSnap.exists) {
+            var byId = docSnap.data() || {};
+            profile = {
+              id: String(studentKey),
+              name: readFirstString(byId, ["name", "fullName", "displayName"]) || String(studentKey),
+              email: readFirstString(byId, ["email"]),
+              photoUrl: normalizePhotoUrl(readFirstString(byId, [
+                "photoUrl",
+                "photoURL",
+                "avatarUrl",
+                "profileImageUrl",
+                "profileImage",
+                "profilePhotoUrl",
+                "profilePicture",
+                "profile_picture",
+                "picture",
+                "pictureUrl",
+                "imageUrl",
+                "image",
+                "avatar",
+                "avatarImage",
+                "studentPhotoUrl",
+                "studentPhotoURL",
+                "studentPicture",
+                "studentAvatar"
+              ]))
+            };
+            waitingStudentsData[cacheKey] = profile;
+            return profile;
+          }
+
+          var lookupFields = ["studentId", "universityId", "uid", "email"];
+          for (var i = 0; i < lookupFields.length; i += 1) {
+            var snap = await db.collection("users")
+              .where(lookupFields[i], "==", String(studentKey))
+              .limit(1)
+              .get();
+            if (!snap.empty) {
+              var byField = snap.docs[0].data() || {};
+              profile = {
+                id: String(studentKey),
+                name: readFirstString(byField, ["name", "fullName", "displayName"]) || String(studentKey),
+                email: readFirstString(byField, ["email"]),
+                photoUrl: normalizePhotoUrl(readFirstString(byField, [
+                  "photoUrl",
+                  "photoURL",
+                  "avatarUrl",
+                  "profileImageUrl",
+                  "profileImage",
+                  "profilePhotoUrl",
+                  "profilePicture",
+                  "profile_picture",
+                  "picture",
+                  "pictureUrl",
+                  "imageUrl",
+                  "image",
+                  "avatar",
+                  "avatarImage",
+                  "studentPhotoUrl",
+                  "studentPhotoURL",
+                  "studentPicture",
+                  "studentAvatar"
+                ]))
+              };
+              break;
+            }
+          }
+        } catch (error) {
+          console.error("فشل تحميل ملف الطالب " + studentKey + ":", error);
+        }
+
+        waitingStudentsData[cacheKey] = profile;
+        return profile;
+      }
+
+      function getInitials(name) {
+        var parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+        if (parts.length === 0) {
+          return "S";
+        }
+        if (parts.length === 1) {
+          return parts[0].charAt(0).toUpperCase();
+        }
+        return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+      }
+
+      function mergeWaitingStudentsSources() {
+        var merged = [];
+        // Match app behavior: source of truth is users.hasActiveRequest + activeRequestArea.
+        if (Array.isArray(latestWaitingUsers) && latestWaitingUsers.length) {
+          merged = latestWaitingUsers.slice();
+        } else if (hasWaitingUsersError || !hasWaitingUsersSnapshot) {
+          if (Array.isArray(latestWaitingRideRequests) && latestWaitingRideRequests.length) {
+            merged = merged.concat(latestWaitingRideRequests);
+          }
+          if (Array.isArray(latestWaitingRideRequestsAlt) && latestWaitingRideRequestsAlt.length) {
+            merged = merged.concat(latestWaitingRideRequestsAlt);
+          }
+        }
+        renderWaitingStudents(merged);
+      }
+
+      function resolveZoneLabel(rawZone) {
+        var normalized = normalizeAreaKey(rawZone);
+        if (!normalized) {
+          return "";
+        }
+
+        for (var i = 0; i < latestZoneDocs.length; i += 1) {
+          var doc = latestZoneDocs[i];
+          var data = doc && typeof doc.data === "function" ? (doc.data() || {}) : {};
+          var zoneName = String(data.name || doc.id || "").trim();
+          if (!zoneName) {
+            continue;
+          }
+
+          if (normalizeAreaKey(zoneName) === normalized || normalizeAreaKey(doc.id) === normalized) {
+            return zoneName;
+          }
+        }
+
+        return String(rawZone || "").trim();
+      }
+
+      function toWaitingRequestData(item) {
+        if (!item) {
+          return {};
+        }
+        if (typeof item.data === "function") {
+          return item.data() || {};
+        }
+        return item;
+      }
+
+      async function renderWaitingStudents(rideRequestDocs) {
+        var container = waitingStudentsContainer;
+        var countBadge = waitingStudentsCount;
+        var emptyState = studentsEmptyState;
+
+        if (!container) {
+          return;
+        }
+
+        container.innerHTML = "";
+
+        if (!rideRequestDocs || rideRequestDocs.length === 0) {
+          if (countBadge) {
+            countBadge.textContent = "0";
+          }
+          if (emptyState) {
+            emptyState.style.display = "block";
+          }
+          return;
+        }
+
+        if (emptyState) {
+          emptyState.style.display = "none";
+        }
+
+        var seenStudents = {};
+        var normalizedDocs = [];
+        for (var i = 0; i < rideRequestDocs.length; i += 1) {
+          var rideData = toWaitingRequestData(rideRequestDocs[i]);
+          var studentKey = readFirstString(rideData, [
+            "studentId",
+            "studentUid",
+            "userId",
+            "uid",
+            "id",
+            "email",
+            "studentEmail",
+            "userEmail",
+            "createdBy"
+          ]);
+          if (!studentKey) {
+            continue;
+          }
+          var normalizedKey = String(studentKey).toLowerCase();
+          if (seenStudents[normalizedKey]) {
+            continue;
+          }
+          seenStudents[normalizedKey] = true;
+          normalizedDocs.push({
+            rideData: rideData,
+            studentKey: studentKey
+          });
+        }
+
+        if (countBadge) {
+          countBadge.textContent = String(normalizedDocs.length);
+        }
+
+        if (normalizedDocs.length === 0) {
+          if (emptyState) {
+            emptyState.style.display = "block";
+          }
+          return;
+        }
+
+        var cardPromises = normalizedDocs.map(async function (entry) {
+          var rideData = entry.rideData || {};
+          var isUserSource = String(rideData.__source || "") === "users-active-request";
+          var profile = isUserSource
+            ? {
+              id: String(entry.studentKey),
+              name: readFirstString(rideData, ["name", "fullName", "displayName"]) || String(entry.studentKey),
+              email: readFirstString(rideData, ["email"]),
+              photoUrl: normalizePhotoUrl(readFirstString(rideData, [
+                "photoUrl",
+                "photoURL",
+                "avatarUrl",
+                "profileImageUrl",
+                "profileImage",
+                "profilePhotoUrl",
+                "profilePicture",
+                "profile_picture",
+                "picture",
+                "pictureUrl",
+                "imageUrl",
+                "image",
+                "avatar",
+                "avatarImage",
+                "studentPhotoUrl",
+                "studentPhotoURL",
+                "studentPicture",
+                "studentAvatar"
+              ]))
+            }
+            : await loadStudentProfile(entry.studentKey);
+          var requestName = readFirstString(rideData, ["name", "fullName", "displayName", "studentName"]);
+          var requestEmail = readFirstString(rideData, ["email", "studentEmail"]);
+          var requestPhoto = normalizePhotoUrl(readFirstString(rideData, [
+            "photoUrl",
+            "photoURL",
+            "avatarUrl",
+            "profileImageUrl",
+            "profileImage",
+            "profilePhotoUrl",
+            "profilePicture",
+            "profile_picture",
+            "picture",
+            "pictureUrl",
+            "imageUrl",
+            "image",
+            "avatar",
+            "avatarImage",
+            "studentPhotoUrl",
+            "studentPhotoURL",
+            "studentPicture",
+            "studentAvatar"
+          ]));
+
+          var displayName = requestName || profile.name || String(entry.studentKey);
+          var displayEmail = requestEmail || profile.email || "";
+          var displayPhoto = requestPhoto || profile.photoUrl || "";
+
+          var card = document.createElement("div");
+          card.className = "student-card";
+
+          var avatarDiv = document.createElement("div");
+          avatarDiv.className = "student-avatar";
+
+          if (displayPhoto) {
+            var img = document.createElement("img");
+            img.src = displayPhoto;
+            img.alt = displayName;
+            img.style.cssText = "width:100%; height:100%; object-fit:cover; border-radius:50%;";
+            avatarDiv.appendChild(img);
+          } else {
+            var initials = getInitials(displayName);
+            avatarDiv.textContent = initials;
+            avatarDiv.style.cssText = avatarDiv.style.cssText + "; display:flex; align-items:center; justify-content:center; font-weight:bold; color:white;";
+          }
+
+          var nameDiv = document.createElement("div");
+          nameDiv.className = "student-name";
+          nameDiv.textContent = displayName || "Student";
+
+          var emailDiv = document.createElement("div");
+          emailDiv.className = "student-email";
+          emailDiv.textContent = displayEmail || "No email";
+
+          var metaDiv = document.createElement("div");
+          metaDiv.className = "student-meta";
+
+          var zoneId = String(readFirstString(rideData, ["zoneId", "zoneName", "activeRequestArea", "area"]) || "").trim();
+          var zoneLabel = resolveZoneLabel(zoneId);
+          var zoneBadge = document.createElement("span");
+          zoneBadge.className = "student-badge";
+          zoneBadge.textContent = zoneLabel || "Unknown Zone";
+
+          metaDiv.appendChild(zoneBadge);
+          card.appendChild(avatarDiv);
+          card.appendChild(nameDiv);
+          card.appendChild(emailDiv);
+          card.appendChild(metaDiv);
+
+          return card;
+        });
+
+        try {
+          var cards = await Promise.all(cardPromises);
+          cards.forEach(function (card) {
+            container.appendChild(card);
+          });
+        } catch (error) {
+          console.error("خطأ في عرض بطاقات الطلاب:", error);
+        }
+      }
+
+      function startWaitingStudentsListening() {
+        if (!db) {
+          return;
+        }
+
+        if (typeof unsubscribeWaitingStudents === "function") {
+          unsubscribeWaitingStudents();
+          unsubscribeWaitingStudents = null;
+        }
+
+        if (typeof unsubscribeWaitingStudentsAlt === "function") {
+          unsubscribeWaitingStudentsAlt();
+          unsubscribeWaitingStudentsAlt = null;
+        }
+
+        if (typeof unsubscribeWaitingUsers === "function") {
+          unsubscribeWaitingUsers();
+          unsubscribeWaitingUsers = null;
+        }
+
+        latestWaitingRideRequests = [];
+        latestWaitingRideRequestsAlt = [];
+        latestWaitingUsers = [];
+        hasWaitingUsersSnapshot = false;
+        hasWaitingRideRequestsError = false;
+        hasWaitingRideRequestsAltError = false;
+        hasWaitingUsersError = false;
+        mergeWaitingStudentsSources();
+
+        var startedFallback = false;
+
+        function isPendingRequest(data) {
+          var rawStatus = String(readFirstString(data || {}, ["status", "requestStatus", "rideStatus"]) || "").toLowerCase().trim();
+          if (rawStatus === "pending" || rawStatus === "waiting" || rawStatus === "requested") {
+            return true;
+          }
+          if (rawStatus === "assigned" || rawStatus === "in-progress" || rawStatus === "completed" || rawStatus === "cancelled" || rawStatus === "canceled" || rawStatus === "rejected" || rawStatus === "departed" || rawStatus === "done" || rawStatus === "closed") {
+            return false;
+          }
+
+          if (data && data.hasActiveRequest === true) {
+            return true;
+          }
+
+          var active = data && data.isActive;
+          var completed = data && data.completed;
+          var activeRequestArea = String(data && data.activeRequestArea || "").trim();
+          if (active === true) {
+            return true;
+          }
+          if (completed === false) {
+            return true;
+          }
+          if (activeRequestArea) {
+            return true;
+          }
+
+          if (rawStatus) {
+            return true;
+          }
+
+          return false;
+        }
+
+        function handleSnapshot(snapshot) {
+          var docs = snapshot && snapshot.docs ? snapshot.docs : [];
+          var filtered = docs.filter(function (doc) {
+            var data = doc.data() || {};
+            return isPendingRequest(data);
+          });
+          hasWaitingRideRequestsError = false;
+          latestWaitingRideRequests = filtered;
+          mergeWaitingStudentsSources();
+        }
+
+        function handleError(error) {
+          console.error("خطأ في الاستماع لطلبات الركوب:", error);
+          hasWaitingRideRequestsError = true;
+          latestWaitingRideRequests = [];
+          mergeWaitingStudentsSources();
+          if (String(error && error.code || "") === "permission-denied") {
+            if (hasWaitingUsersError) {
+              setStatus("لا توجد صلاحية لقراءة rideRequests أو users. حدّث Firestore Rules لحساب القائد.", "error");
+            }
+            return;
+          }
+          if (String(error && error.code || "") === "failed-precondition" && !startedFallback) {
+            startedFallback = true;
+            unsubscribeWaitingStudents = db
+              .collection("rideRequests")
+              .limit(120)
+              .onSnapshot(handleSnapshot, function (fallbackError) {
+                console.error("فشل الاستماع الاحتياطي لطلبات الركوب:", fallbackError);
+                hasWaitingRideRequestsError = true;
+                latestWaitingRideRequests = [];
+                mergeWaitingStudentsSources();
+                if (hasWaitingUsersError && hasWaitingRideRequestsAltError) {
+                  setStatus("تعذر تحميل قائمة الطلاب المنتظرين. تحقق من قواعد Firestore والفهارس.", "error");
+                }
+              });
+            return;
+          }
+          if (hasWaitingUsersError && hasWaitingRideRequestsAltError) {
+            setStatus("تعذر تحميل قائمة الطلاب المنتظرين. تحقق من قواعد Firestore والفهارس.", "error");
+          }
+        }
+
+        function handleAltSnapshot(snapshot) {
+          var docs = snapshot && snapshot.docs ? snapshot.docs : [];
+          var filtered = docs.filter(function (doc) {
+            var data = doc.data() || {};
+            return isPendingRequest(data);
+          });
+          hasWaitingRideRequestsAltError = false;
+          latestWaitingRideRequestsAlt = filtered;
+          mergeWaitingStudentsSources();
+        }
+
+        function handleAltError(error) {
+          console.error("خطأ في الاستماع لطلبات الركوب (ride_requests):", error);
+          hasWaitingRideRequestsAltError = true;
+          latestWaitingRideRequestsAlt = [];
+          mergeWaitingStudentsSources();
+
+          if (hasWaitingRideRequestsError && hasWaitingUsersError) {
+            setStatus("تعذر تحميل قائمة الطلاب المنتظرين. تحقق من قواعد Firestore والفهارس.", "error");
+          }
+        }
+
+        function handleUsersSnapshot(snapshot) {
+          hasWaitingUsersSnapshot = true;
+          var docs = snapshot && snapshot.docs ? snapshot.docs : [];
+          var mapped = docs.map(function (doc) {
+            var data = doc.data() || {};
+            var activeAreaRaw = String(data.activeRequestArea || "").trim();
+            var activeArea = resolveZoneLabel(activeAreaRaw);
+            return {
+              __source: "users-active-request",
+              id: doc.id,
+              uid: String(data.uid || doc.id || "").trim(),
+              studentId: String(data.studentId || data.universityId || data.uid || doc.id || "").trim(),
+              name: String(readFirstString(data, ["name", "fullName", "displayName"]) || "").trim(),
+              email: String(readFirstString(data, ["email"]) || "").trim(),
+              photoUrl: String(readFirstString(data, [
+                "photoUrl",
+                "photoURL",
+                "avatarUrl",
+                "profileImageUrl",
+                "profileImage",
+                "profilePhotoUrl",
+                "profilePicture",
+                "profile_picture",
+                "picture",
+                "pictureUrl",
+                "imageUrl",
+                "image",
+                "avatar",
+                "avatarImage",
+                "studentPhotoUrl",
+                "studentPhotoURL",
+                "studentPicture",
+                "studentAvatar"
+              ]) || "").trim(),
+              activeRequestArea: activeArea,
+              zoneId: activeArea,
+              status: "pending"
+            };
+          }).filter(function (entry) {
+            return !!entry.activeRequestArea;
+          });
+
+          hasWaitingUsersError = false;
+          latestWaitingUsers = mapped;
+          mergeWaitingStudentsSources();
+        }
+
+        function handleUsersError(error) {
+          console.error("خطأ في الاستماع للمستخدمين ذوي الطلبات النشطة:", error);
+          hasWaitingUsersSnapshot = true;
+          hasWaitingUsersError = true;
+          latestWaitingUsers = [];
+          mergeWaitingStudentsSources();
+
+          if (hasWaitingRideRequestsError) {
+            setStatus("تعذر تحميل قائمة الطلاب المنتظرين. تحقق من قواعد Firestore والفهارس.", "error");
+          }
+        }
+
+        unsubscribeWaitingStudents = db
+          .collection("rideRequests")
+          .limit(120)
+          .onSnapshot(handleSnapshot, handleError);
+
+        unsubscribeWaitingStudentsAlt = db
+          .collection("ride_requests")
+          .limit(120)
+          .onSnapshot(handleAltSnapshot, handleAltError);
+
+        unsubscribeWaitingUsers = db
+          .collection("users")
+          .where("hasActiveRequest", "==", true)
+          .limit(200)
+          .onSnapshot(handleUsersSnapshot, handleUsersError);
+      }
+
       async function startListening() {
         if (!db) {
           return;
@@ -2448,6 +3080,8 @@
               startZonesPollingFallback();
             }
           );
+
+        startWaitingStudentsListening();
       }
 
       function initFirebaseAndLoad() {
@@ -2486,7 +3120,6 @@
                 "ok"
               );
               showToast("تم تسجيل الدخول بنجاح", "ok");
-              startLeaderMetaListening();
               startListening();
             } else {
               isUserAuthorized = false;
@@ -2595,10 +3228,6 @@
         seedDefaultZoneNames();
       });
 
-      saveLeaderMetaBtn.addEventListener("click", function () {
-        saveLeaderMeta();
-      });
-
       qaAddZoneBtn.addEventListener("click", function () {
         zoneNameInput.focus();
         zoneNameInput.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -2617,11 +3246,6 @@
       qaRefreshBtn.addEventListener("click", function () {
         startListening();
         showToast("جاري التحديث", "ok");
-      });
-
-      qaMapBtn.addEventListener("click", function () {
-        var isVisible = mapPanel.style.display === "block";
-        mapPanel.style.display = isVisible ? "none" : "block";
       });
 
       fabQuickBtn.addEventListener("click", function () {
