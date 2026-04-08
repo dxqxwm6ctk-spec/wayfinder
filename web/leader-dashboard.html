@@ -935,6 +935,9 @@
     <section class="panel waiting-students-panel">
       <h2>الطلاب المنتظرون <span id="waitingStudentsCount" class="students-count-badge">0</span></h2>
       <p class="muted">الطلاب الذين طلبوا رحلات والذين ينتظرون الباص</p>
+      <div class="card-actions" style="margin-bottom: 10px;">
+        <button id="clearAllWaitingBtn" class="tiny danger" type="button">حذف الطلبات لكل المناطق</button>
+      </div>
       <div id="waitingStudentsContainer" class="students-grid"></div>
       <div id="studentsEmptyState" class="students-empty" style="display:none;">
         لا يوجد طلاب منتظرون حالياً
@@ -1033,6 +1036,7 @@
       var waitingStudentsContainer = document.getElementById("waitingStudentsContainer");
       var waitingStudentsCount = document.getElementById("waitingStudentsCount");
       var studentsEmptyState = document.getElementById("studentsEmptyState");
+      var clearAllWaitingBtn = document.getElementById("clearAllWaitingBtn");
 
       var zoneNameInput = document.getElementById("zoneNameInput");
       var zoneBusInput = document.getElementById("zoneBusInput");
@@ -1205,6 +1209,14 @@
 
       function normalizeAreaKey(value) {
         return String(value || "").trim().toLowerCase();
+      }
+
+      function areaMatches(zoneName, zoneId, activeArea) {
+        var normalizedArea = normalizeAreaKey(activeArea);
+        if (!normalizedArea) {
+          return false;
+        }
+        return normalizedArea === normalizeAreaKey(zoneName) || normalizedArea === normalizeAreaKey(zoneId);
       }
 
       function renderZonePicker(zoneItems) {
@@ -1756,6 +1768,9 @@
               '<button class="tiny" data-action="save">تعديل</button>' +
               '<button class="tiny" data-action="dispatch">تعيين باص رئيسي</button>' +
               '<button class="tiny" data-action="add-bus">إضافة باص</button>' +
+              (waiting > 0
+                ? '<button class="tiny danger" data-action="clear-requests">حذف الطلبات</button>'
+                : '') +
               (primaryBus && departedBuses.indexOf(primaryBus) === -1
                 ? '<button class="tiny" data-action="mark-departed">طلع الباص الرئيسي</button>'
                 : '') +
@@ -1845,6 +1860,153 @@
         } catch (error) {
           console.error(error);
           setStatus("فشل زرع المناطق: " + (error.message || "خطأ غير معروف"), "error");
+        }
+      }
+
+      async function clearActiveRequestsForUsers(filterFn) {
+        if (!db) {
+          return 0;
+        }
+
+        var snapshot = await db
+          .collection("users")
+          .where("hasActiveRequest", "==", true)
+          .limit(500)
+          .get();
+
+        if (!snapshot || snapshot.empty) {
+          return 0;
+        }
+
+        var updates = [];
+        snapshot.docs.forEach(function (doc) {
+          var data = doc.data() || {};
+          var activeArea = String(data.activeRequestArea || "").trim();
+          if (typeof filterFn === "function" && !filterFn(activeArea, data, doc)) {
+            return;
+          }
+
+          updates.push(
+            db.collection("users").doc(doc.id).set(
+              {
+                hasActiveRequest: false,
+                activeRequestArea: "",
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+              },
+              { merge: true }
+            )
+          );
+        });
+
+        if (!updates.length) {
+          return 0;
+        }
+
+        await Promise.all(updates);
+        return updates.length;
+      }
+
+      async function clearRequestsForZone(docId, zoneName) {
+        if (!db) {
+          return;
+        }
+        if (!requireSignedIn("حذف طلبات منطقة")) {
+          return;
+        }
+
+        var zoneLabel = String(zoneName || docId || "").trim() || "المنطقة";
+        var confirmed = window.confirm("سيتم حذف جميع الطلبات المنتظرة في منطقة " + zoneLabel + ". متابعة؟");
+        if (!confirmed) {
+          return;
+        }
+
+        try {
+          var zoneSnap = await db.collection("zones").doc(docId).get();
+          if (!zoneSnap.exists) {
+            setStatus("المنطقة غير موجودة.", "warn");
+            return;
+          }
+
+          var data = zoneSnap.data() || {};
+          var effectiveName = String(data.name || zoneLabel || docId).trim();
+          var waitingBefore = getStudentsWaitingValue(data);
+
+          await db.collection("zones").doc(docId).set(
+            {
+              studentsWaiting: 0,
+              requestsClearedAt: Date.now(),
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            },
+            { merge: true }
+          );
+
+          var usersCleared = await clearActiveRequestsForUsers(function (activeArea) {
+            return areaMatches(effectiveName, docId, activeArea);
+          });
+
+          setStatus("تم حذف طلبات المنطقة: " + effectiveName, "ok");
+          showToast("تم حذف الطلبات - " + effectiveName + " (" + String(Math.max(waitingBefore, usersCleared)) + ")", "warn");
+        } catch (error) {
+          console.error(error);
+          setStatus("فشل حذف طلبات المنطقة: " + (error.message || "خطأ غير معروف"), "error");
+        }
+      }
+
+      async function clearRequestsForAllZones() {
+        if (!db) {
+          return;
+        }
+        if (!requireSignedIn("حذف الطلبات لكل المناطق")) {
+          return;
+        }
+
+        var confirmed = window.confirm("سيتم حذف جميع الطلبات المنتظرة لكل المناطق. متابعة؟");
+        if (!confirmed) {
+          return;
+        }
+
+        try {
+          var zonesSnap = await db.collection("zones").get();
+          var zoneUpdates = [];
+          var waitingTotal = 0;
+
+          zonesSnap.docs.forEach(function (doc) {
+            var data = doc.data() || {};
+            if (isZoneDeleted(data.isDeleted)) {
+              return;
+            }
+
+            waitingTotal += getStudentsWaitingValue(data);
+            zoneUpdates.push(
+              db.collection("zones").doc(doc.id).set(
+                {
+                  studentsWaiting: 0,
+                  requestsClearedAt: Date.now(),
+                  updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                },
+                { merge: true }
+              )
+            );
+          });
+
+          if (zoneUpdates.length) {
+            await Promise.all(zoneUpdates);
+          }
+
+          var usersCleared = await clearActiveRequestsForUsers(function () {
+            return true;
+          });
+
+          latestWaitingUsers = [];
+          latestWaitingRideRequests = [];
+          latestWaitingRideRequestsAlt = [];
+          mergeWaitingStudentsSources();
+
+          setStatus("تم حذف الطلبات لكل المناطق.", "ok");
+          showToast("تم حذف جميع الطلبات المنتظرة (" + String(Math.max(waitingTotal, usersCleared)) + ")", "warn");
+        } catch (error) {
+          console.error(error);
+          setStatus("فشل حذف الطلبات لكل المناطق: " + (error.message || "خطأ غير معروف"), "error");
         }
       }
 
@@ -2421,6 +2583,14 @@
         card.querySelector('[data-action="delete"]').addEventListener("click", function () {
           deleteZone(docId);
         });
+
+        var clearRequestsBtn = card.querySelector('[data-action="clear-requests"]');
+        if (clearRequestsBtn) {
+          clearRequestsBtn.addEventListener("click", function () {
+            var zoneName = String(card.querySelector('[data-role="name"]').value || "").trim();
+            clearRequestsForZone(docId, zoneName);
+          });
+        }
       }
 
       function wireDeletedCardActions(card, docId, zoneName) {
@@ -3226,6 +3396,10 @@
 
       seedZonesBtn.addEventListener("click", function () {
         seedDefaultZoneNames();
+      });
+
+      clearAllWaitingBtn.addEventListener("click", function () {
+        clearRequestsForAllZones();
       });
 
       qaAddZoneBtn.addEventListener("click", function () {
