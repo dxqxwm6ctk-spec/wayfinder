@@ -1865,17 +1865,31 @@
 
       async function clearActiveRequestsForUsers(filterFn) {
         if (!db) {
-          return 0;
+          return { count: 0, skippedByPermissions: false };
         }
 
-        var snapshot = await db
-          .collection("users")
-          .where("hasActiveRequest", "==", true)
-          .limit(500)
-          .get();
+        function isPermissionDenied(error) {
+          var code = String(error && error.code || "").toLowerCase();
+          var message = String(error && error.message || "").toLowerCase();
+          return code === "permission-denied" || message.indexOf("missing or insufficient permissions") !== -1;
+        }
+
+        var snapshot;
+        try {
+          snapshot = await db
+            .collection("users")
+            .where("hasActiveRequest", "==", true)
+            .limit(500)
+            .get();
+        } catch (error) {
+          if (isPermissionDenied(error)) {
+            return { count: 0, skippedByPermissions: true };
+          }
+          throw error;
+        }
 
         if (!snapshot || snapshot.empty) {
-          return 0;
+          return { count: 0, skippedByPermissions: false };
         }
 
         var updates = [];
@@ -1899,11 +1913,18 @@
         });
 
         if (!updates.length) {
-          return 0;
+          return { count: 0, skippedByPermissions: false };
         }
 
-        await Promise.all(updates);
-        return updates.length;
+        try {
+          await Promise.all(updates);
+          return { count: updates.length, skippedByPermissions: false };
+        } catch (error) {
+          if (isPermissionDenied(error)) {
+            return { count: 0, skippedByPermissions: true };
+          }
+          throw error;
+        }
       }
 
       async function clearRequestsForZone(docId, zoneName) {
@@ -1940,12 +1961,21 @@
             { merge: true }
           );
 
-          var usersCleared = await clearActiveRequestsForUsers(function (activeArea) {
-            return areaMatches(effectiveName, docId, activeArea);
-          });
+          var usersResult = { count: 0, skippedByPermissions: false };
+          try {
+            usersResult = await clearActiveRequestsForUsers(function (activeArea) {
+              return areaMatches(effectiveName, docId, activeArea);
+            });
+          } catch (usersError) {
+            console.warn("تعذر تحديث users أثناء حذف طلبات المنطقة:", usersError);
+            usersResult = { count: 0, skippedByPermissions: true };
+          }
 
+          if (usersResult.skippedByPermissions) {
+            console.warn("تم حذف الطلبات من zones لكن تعذر تحديث users بسبب الصلاحيات.");
+          }
           setStatus("تم حذف طلبات المنطقة: " + effectiveName, "ok");
-          showToast("تم حذف الطلبات - " + effectiveName + " (" + String(Math.max(waitingBefore, usersCleared)) + ")", "warn");
+          showToast("تم حذف الطلبات - " + effectiveName + " (" + String(Math.max(waitingBefore, usersResult.count)) + ")", "warn");
         } catch (error) {
           console.error(error);
           setStatus("فشل حذف طلبات المنطقة: " + (error.message || "خطأ غير معروف"), "error");
@@ -1993,17 +2023,26 @@
             await Promise.all(zoneUpdates);
           }
 
-          var usersCleared = await clearActiveRequestsForUsers(function () {
-            return true;
-          });
+          var usersResult = { count: 0, skippedByPermissions: false };
+          try {
+            usersResult = await clearActiveRequestsForUsers(function () {
+              return true;
+            });
+          } catch (usersError) {
+            console.warn("تعذر تحديث users أثناء حذف جميع الطلبات:", usersError);
+            usersResult = { count: 0, skippedByPermissions: true };
+          }
 
           latestWaitingUsers = [];
           latestWaitingRideRequests = [];
           latestWaitingRideRequestsAlt = [];
           mergeWaitingStudentsSources();
 
+          if (usersResult.skippedByPermissions) {
+            console.warn("تم حذف الطلبات من zones لكن تعذر تحديث users بسبب الصلاحيات.");
+          }
           setStatus("تم حذف الطلبات لكل المناطق.", "ok");
-          showToast("تم حذف جميع الطلبات المنتظرة (" + String(Math.max(waitingTotal, usersCleared)) + ")", "warn");
+          showToast("تم حذف جميع الطلبات المنتظرة (" + String(Math.max(waitingTotal, usersResult.count)) + ")", "warn");
         } catch (error) {
           console.error(error);
           setStatus("فشل حذف الطلبات لكل المناطق: " + (error.message || "خطأ غير معروف"), "error");
