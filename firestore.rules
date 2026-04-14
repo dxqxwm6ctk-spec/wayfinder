@@ -1,0 +1,107 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isLeader() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/authorized_users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/authorized_users/$(request.auth.uid)).data.active != false;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isStudentZoneCounterUpdate() {
+      return isSignedIn()
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['studentsWaiting', 'updatedAt'])
+        && request.resource.data.studentsWaiting is int
+        && request.resource.data.studentsWaiting >= 0
+        && request.resource.data.studentsWaiting <= 500;
+    }
+
+    match /authorized_users/{userId} {
+      allow read: if isOwner(userId) || isLeader();
+      allow write: if false;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isLeader();
+      allow create, update: if isOwner(userId) || isLeader();
+      allow delete: if isLeader();
+    }
+
+    match /zones/{zoneId} {
+      allow read: if isSignedIn();
+      allow create, delete: if isLeader();
+      allow update: if isLeader() || isStudentZoneCounterUpdate();
+    }
+
+    match /buses/{busId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isLeader();
+    }
+
+    match /rideRequests/{requestId} {
+      allow read: if isSignedIn() && (
+        resource.data.studentId == request.auth.uid
+        || resource.data.userId == request.auth.uid
+        || isLeader()
+      );
+      allow create: if isSignedIn();
+      allow update, delete: if isLeader();
+    }
+
+    match /ride_requests/{requestId} {
+      allow read: if isSignedIn() && (
+        resource.data.studentId == request.auth.uid
+        || resource.data.userId == request.auth.uid
+        || isLeader()
+      );
+      allow create: if isSignedIn();
+      allow update, delete: if isLeader();
+    }
+
+    match /tripSlots/{tripSlotId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isLeader();
+    }
+
+    match /preBookings/{bookingId} {
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || isLeader()
+      );
+
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+
+      allow update: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || isLeader()
+      );
+
+      allow delete: if isLeader();
+    }
+
+    match /activeTrips/{tripId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isLeader();
+    }
+
+    match /activityLogs/{docId} {
+      allow create: if isSignedIn();
+      allow read: if isLeader();
+    }
+
+    match /tripLogs/{docId} {
+      allow create: if isSignedIn();
+      allow read: if isLeader();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

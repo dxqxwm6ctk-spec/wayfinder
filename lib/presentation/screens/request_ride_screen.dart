@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../localization/app_strings.dart';
 import '../providers/app_settings_provider.dart';
+import '../widgets/pre_booking_panel.dart';
 import '../providers/transit_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_shell_background.dart';
@@ -880,6 +881,8 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                         },
                       ),
                     ),
+                    const SizedBox(height: 18),
+                    const PreBookingPanel(),
                     const SizedBox(height: 22),
                     if (!hasValidActiveRequest)
                       CustomButton(
