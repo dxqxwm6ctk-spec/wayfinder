@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
-
 import 'core/config/app_env.dart';
 import 'core/services/firebase_service.dart';
 import 'core/services/microsoft_auth_service.dart';
@@ -17,12 +16,10 @@ import 'presentation/providers/navigation_provider.dart';
 import 'presentation/providers/transit_provider.dart';
 import 'presentation/providers/unified_auth_provider.dart';
 import 'presentation/screens/auth_wrapper_screen.dart';
-import 'presentation/screens/main_shell_screen.dart';
 import 'presentation/theme/app_theme.dart';
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Firebase
   try {
     await FirebaseService().initialize();
@@ -42,9 +39,7 @@ Future<void> main() async {
       );
       debugPrint('Microsoft Entra initialized successfully');
     } else {
-      debugPrint(
-        'Microsoft sign-in is disabled by MICROSOFT_SIGN_IN_ENABLED.',
-      );
+      debugPrint('Microsoft sign-in is disabled by MICROSOFT_SIGN_IN_ENABLED.');
     }
   } catch (e) {
     debugPrint('Microsoft Entra initialization failed: $e');
@@ -91,36 +86,39 @@ class WayfinderApp extends StatelessWidget {
           ),
         ),
         ChangeNotifierProvider<TransitProvider>(
-          create: (_) => TransitProvider(GetTransitDashboard(transitRepository)),
+          create: (_) =>
+              TransitProvider(GetTransitDashboard(transitRepository)),
         ),
         ChangeNotifierProvider<NavigationProvider>(
           create: (_) => NavigationProvider(),
         ),
       ],
       child: Consumer<AppSettingsProvider>(
-        builder: (BuildContext context, AppSettingsProvider settings, Widget? child) {
-          return MaterialApp(
-            title: 'WAYFINDER',
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.light,
-            darkTheme: AppTheme.dark,
-            themeMode: settings.themeMode,
-            locale: settings.locale,
-            supportedLocales: const <Locale>[
-              Locale('en'),
-              Locale('ar'),
-            ],
-            localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-            ],
-            routes: <String, WidgetBuilder>{
-              '/main': (_) => const MainShellScreen(),
+        builder:
+            (
+              BuildContext context,
+              AppSettingsProvider settings,
+              Widget? child,
+            ) {
+              return MaterialApp(
+                title: 'WAYFINDER',
+                debugShowCheckedModeBanner: false,
+                theme: AppTheme.light,
+                darkTheme: AppTheme.dark,
+                themeMode: settings.themeMode,
+                locale: settings.locale,
+                supportedLocales: const <Locale>[Locale('en'), Locale('ar')],
+                localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                ],
+                routes: <String, WidgetBuilder>{
+                  '/main': (_) => const AuthWrapperScreen(),
+                },
+                home: const AuthWrapperScreen(),
+              );
             },
-            home: const AuthWrapperScreen(),
-          );
-        },
       ),
     );
   }

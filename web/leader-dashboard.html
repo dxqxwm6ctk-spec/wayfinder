@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Wayfinder | لوحة القائد</title>
+  <title>ويفندر | لوحة القائد</title>
   <style>
     :root {
       --bg: #0d111a;
@@ -51,6 +51,338 @@
     .page {
       width: min(1180px, 94%);
       margin: 18px auto 84px;
+    }
+
+    .mode-strip {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .mode-pill {
+      border: 1px solid #314667;
+      background: #13203a;
+      color: #d9e7ff;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .mode-pill.active {
+      background: linear-gradient(135deg, var(--brand), var(--brand-2));
+      border-color: transparent;
+      color: #061720;
+    }
+
+    .operations-shell {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .ops-hero {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .ops-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    .ops-wide-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    .ops-card {
+      background: linear-gradient(180deg, rgba(19, 28, 46, 0.98), rgba(16, 24, 42, 0.98));
+      border: 1px solid #274062;
+      border-radius: 18px;
+      padding: 14px;
+      box-shadow: var(--glow);
+    }
+
+    .ops-card .eyebrow {
+      margin: 0 0 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #8df8df;
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .ops-card .eyebrow::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--brand), var(--brand-2));
+      box-shadow: 0 0 0 5px rgba(34, 167, 224, 0.12);
+    }
+
+    .ops-card h2,
+    .ops-card h3 {
+      margin: 0 0 12px;
+      color: #e8f1ff;
+    }
+
+    .ops-kpis {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+    }
+
+    .ops-kpi {
+      background: #15223a;
+      border: 1px solid #2a4161;
+      border-radius: 14px;
+      padding: 12px;
+      min-height: 86px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .ops-kpi .tag {
+      color: var(--ink-soft);
+      font-size: 0.74rem;
+      font-weight: 700;
+    }
+
+    .ops-kpi .num {
+      color: #f4f8ff;
+      font-size: 1.5rem;
+      font-weight: 900;
+      line-height: 1;
+      margin-top: 6px;
+    }
+
+    .ops-kpi.active .num { color: #7ef4cb; }
+    .ops-kpi.delayed .num { color: #ffd37e; }
+    .ops-kpi.issue .num { color: #ff8b86; }
+
+    .route-viz {
+      display: grid;
+      gap: 10px;
+    }
+
+    .route-step {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: #13203a;
+      border: 1px solid #29405f;
+    }
+
+    .route-step strong {
+      font-size: 0.9rem;
+      color: #eff4ff;
+    }
+
+    .route-step .meta {
+      color: var(--ink-soft);
+      font-size: 0.74rem;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 10px;
+    }
+
+    .timeline-item {
+      display: grid;
+      grid-template-columns: 18px 1fr;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .timeline-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      margin-top: 4px;
+      background: var(--brand);
+      box-shadow: 0 0 0 6px rgba(34, 167, 224, 0.1);
+    }
+
+    .timeline-card {
+      background: #13203a;
+      border: 1px solid #29405f;
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+
+    .timeline-card strong {
+      display: block;
+      margin-bottom: 4px;
+      color: #f1f6ff;
+    }
+
+    .alerts-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .alert-row {
+      border: 1px solid #31465f;
+      background: #13213a;
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .alert-row.critical { border-color: rgba(255, 95, 87, 0.45); }
+    .alert-row.warn { border-color: rgba(255, 186, 92, 0.45); }
+    .alert-row.ok { border-color: rgba(46, 182, 125, 0.45); }
+
+    .alert-row .title {
+      font-weight: 800;
+      color: #eff5ff;
+    }
+
+    .alert-row .sub {
+      color: var(--ink-soft);
+      font-size: 0.75rem;
+      margin-top: 3px;
+    }
+
+    .admin-drawer {
+      display: none;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .admin-drawer.open {
+      display: block;
+    }
+
+    .admin-toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 12px 0;
+    }
+
+    .collapsible-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .collapsible-head button {
+      flex-shrink: 0;
+    }
+
+    .analytics-kpis {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 10px;
+      margin: 12px 0;
+    }
+
+    .analytics-kpi {
+      border: 1px solid #2d4061;
+      background: #132039;
+      border-radius: 12px;
+      padding: 10px;
+    }
+
+    .analytics-kpi .label {
+      font-size: 0.77rem;
+      color: var(--ink-soft);
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+
+    .analytics-kpi .value {
+      font-size: 1.25rem;
+      color: #f2f7ff;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+
+    .analytics-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .analytics-block {
+      border: 1px solid #2b3d5d;
+      background: #101a2e;
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .analytics-block h3 {
+      margin: 0 0 10px;
+      font-size: 0.92rem;
+      color: #d9e7ff;
+    }
+
+    .locations-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.83rem;
+    }
+
+    .locations-table th,
+    .locations-table td {
+      border-bottom: 1px solid #263856;
+      padding: 8px 6px;
+      text-align: right;
+      color: #d8e4fc;
+    }
+
+    .locations-table th {
+      color: #9eb2d4;
+      font-weight: 800;
+      font-size: 0.75rem;
+    }
+
+    .location-card {
+      border: 1px solid #2e4264;
+      background: #14223a;
+      border-radius: 12px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .location-name {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #e9f1ff;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .location-meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
     }
 
     .hero {
@@ -284,6 +616,14 @@
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px;
+    }
+
+    .qa-grid-horizontal {
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(170px, 1fr);
+      grid-template-columns: none;
+      overflow-x: auto;
+      padding-bottom: 4px;
     }
 
     .qa-btn {
@@ -647,6 +987,12 @@
       width: 100%;
     }
 
+    .student-meta.stack {
+      flex-direction: column;
+      align-items: center;
+      gap: 7px;
+    }
+
     .student-badge {
       border: 1px solid #3a4a6b;
       background: #18233a;
@@ -655,6 +1001,12 @@
       border-radius: 999px;
       font-size: 0.72rem;
       font-weight: 600;
+    }
+
+    .student-badge.missing {
+      border-color: rgba(255, 186, 92, 0.42);
+      background: rgba(255, 186, 92, 0.12);
+      color: #ffd9a1;
     }
 
     .students-empty {
@@ -672,6 +1024,98 @@
       font-size: 0.85rem;
       font-weight: 800;
       margin-left: 8px;
+    }
+
+    .analytics-kpis {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 10px;
+      margin: 12px 0;
+    }
+
+    .analytics-kpi {
+      border: 1px solid #2d4061;
+      background: #132039;
+      border-radius: 12px;
+      padding: 10px;
+    }
+
+    .analytics-kpi .label {
+      font-size: 0.77rem;
+      color: var(--ink-soft);
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+
+    .analytics-kpi .value {
+      font-size: 1.25rem;
+      color: #f2f7ff;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+
+    .analytics-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .analytics-block {
+      border: 1px solid #2b3d5d;
+      background: #101a2e;
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .analytics-block h3 {
+      margin: 0 0 10px;
+      font-size: 0.92rem;
+      color: #d9e7ff;
+    }
+
+    .locations-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.83rem;
+    }
+
+    .locations-table th,
+    .locations-table td {
+      border-bottom: 1px solid #263856;
+      padding: 8px 6px;
+      text-align: right;
+      color: #d8e4fc;
+    }
+
+    .locations-table th {
+      color: #9eb2d4;
+      font-weight: 800;
+      font-size: 0.75rem;
+    }
+
+    .location-card {
+      border: 1px solid #2e4264;
+      background: #14223a;
+      border-radius: 12px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .location-name {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #e9f1ff;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .location-meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
     }
 
     .auth-panel {
@@ -832,6 +1276,26 @@
         grid-template-columns: 1fr 1fr;
       }
 
+      .operations-shell {
+        grid-template-columns: 1.25fr 0.75fr;
+      }
+
+      .ops-hero {
+        grid-template-columns: 1.45fr 0.95fr;
+      }
+
+      .ops-grid {
+        grid-template-columns: 1.1fr 0.9fr;
+      }
+
+      .ops-wide-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .analytics-layout {
+        grid-template-columns: 1.1fr 1fr;
+      }
+
       .fab {
         display: none;
       }
@@ -841,20 +1305,24 @@
 <body>
   <main class="page">
     <section class="hero">
-      <h1>لوحة القائد - Wayfinder</h1>
-      <p>تحكم مباشر بحركة النقل داخل الحرم: تحديث لحظي، قرارات سريعة، وإدارة مناطق بدون تعقيد.</p>
+      <h1>لوحة ويفندر التشغيلية</h1>
+      <p>مركز تحكم لحظي لحركة النقل: الحالة الحية، قرارات المسار، وأوامر السائق والباص قبل أي بيانات ثانوية.</p>
+      <div class="mode-strip">
+        <button id="operationsModeBtn" class="mode-pill active" type="button">وضع العمليات</button>
+        <button id="adminModeBtn" class="mode-pill" type="button">وضع الإدارة</button>
+      </div>
       <div class="hero-actions" id="authSection">
         <button id="toggleAuthPanelBtn" class="btn btn-solid">تسجيل دخول</button>
         <button id="signOutBtn" class="btn" type="button" style="display:none;">تسجيل خروج</button>
         <button id="refreshBtn" class="btn btn-solid">تحديث البيانات</button>
-        <button id="toggleSetupBtn" class="btn">إعداد Firebase</button>
+        <button id="toggleSetupBtn" class="btn">إعداد فايربيس</button>
       </div>
       <div id="authPanel" class="auth-panel" style="display:none;">
         <div class="auth-form">
           <h3>تسجيل الدخول</h3>
           <div class="field">
             <label for="emailInput">البريد الإلكتروني</label>
-            <input id="emailInput" class="input" type="email" placeholder="your@email.com" />
+            <input id="emailInput" class="input" type="email" placeholder="بريدك@الجامعة.edu" />
           </div>
           <div class="field">
             <label for="passwordInput">كلمة المرور</label>
@@ -870,79 +1338,172 @@
     </section>
 
     <div id="protectedContent" style="display:none;">
-
-    <section class="panel">
-      <h2>مناطق الباصات</h2>
-      <div id="topSelectedZoneHint" class="muted">المنطقة المختارة: كل المناطق</div>
-      <div id="topZonePickerChips" class="filter-bar" style="margin-top: 8px;"></div>
-    </section>
-
-    <section class="layout">
-      <section class="panel">
-        <h2>الحالة المباشرة</h2>
-        <div class="live-grid">
-          <article class="live-card">
-            <div class="title">الطلاب المنتظرون</div>
-            <div id="waitingCount" class="value">0</div>
-          </article>
-          <article class="live-card">
-            <div class="title">المناطق النشطة</div>
-            <div id="zonesCount" class="value">0</div>
-            <div class="hint">محذوفة: <span id="deletedZonesCount">0</span></div>
-          </article>
-          <article class="live-card">
-            <div class="title">المناطق تحت ضغط</div>
-            <div id="criticalCount" class="value">0</div>
-          </article>
-          <article class="live-card">
-            <div class="title">الحافلات النشطة</div>
-            <div id="activeBusesCount" class="value">0</div>
-            <div id="unassignedZonesCount" class="hint">غير مخصصة: 0</div>
-          </article>
-          <article class="live-card">
-            <div class="title">حالة النظام</div>
-            <div class="signal">
-              <span id="connectionDot" class="dot warn"></span>
-              <span id="connectionState">غير متصل</span>
+      <section class="operations-shell" id="operationsModeShell">
+        <section class="ops-hero">
+          <div class="ops-card">
+            <div class="eyebrow">العمليات الحية</div>
+            <div class="collapsible-head">
+              <div>
+                <h2>مركز العمليات</h2>
+                <div class="muted">الباصات الحية، التأخيرات، المشكلات، وأوامر التحكم الفورية.</div>
+              </div>
+              <button id="forceRefreshBtn" class="btn btn-solid" type="button">تحديث فوري</button>
             </div>
-            <div class="hint">آخر تحديث: <span id="lastUpdate">-</span></div>
-          </article>
-        </div>
+
+            <div class="ops-kpis">
+              <article class="ops-kpi active">
+                <div class="tag">نشط</div>
+                <div id="opsActiveBuses" class="num">0</div>
+              </article>
+              <article class="ops-kpi delayed">
+                <div class="tag">متأخر</div>
+                <div id="opsDelayedCount" class="num">0</div>
+              </article>
+              <article class="ops-kpi issue">
+                <div class="tag">مشكلة</div>
+                <div id="opsIssuesCount" class="num">0</div>
+              </article>
+              <article class="ops-kpi">
+                <div class="tag">رحلات اليوم</div>
+                <div id="opsTripsToday" class="num">0</div>
+              </article>
+            </div>
+
+            <div class="ops-grid" style="margin-top: 12px;">
+              <section class="analytics-block">
+                <h3>المسارات الحية</h3>
+                <div id="routeVizContainer" class="route-viz"></div>
+              </section>
+              <section class="analytics-block">
+                <h3>إجراءات سريعة</h3>
+                <div class="qa-grid qa-grid-horizontal">
+                  <button id="qaAddZoneBtn" class="qa-btn" type="button">
+                    <span class="icon">▶</span>
+                    <span class="label">بدء رحلة</span>
+                    <span class="sub">الانتقال إلى المسار النشط التالي</span>
+                  </button>
+                  <button id="qaAssignBusBtn" class="qa-btn" type="button">
+                    <span class="icon">B</span>
+                    <span class="label">تعيين سائق / باص</span>
+                    <span class="sub">تبديل السائق أو الباص فورًا</span>
+                  </button>
+                  <button id="qaRefreshBtn" class="qa-btn" type="button">
+                    <span class="icon">!</span>
+                    <span class="label">الإبلاغ عن مشكلة</span>
+                    <span class="sub">فتح التنبيهات القابلة للتنفيذ</span>
+                  </button>
+                </div>
+              </section>
+            </div>
+          </div>
+
+        </section>
       </section>
 
-      <section class="panel" id="quickActionsPanel">
-        <h2>الإجراءات السريعة</h2>
-        <div class="qa-grid">
-          <button id="qaAddZoneBtn" class="qa-btn" type="button">
-            <span class="icon">+</span>
-            <span class="label">إضافة منطقة</span>
-            <span class="sub">إنشاء منطقة جديدة بسرعة</span>
-          </button>
-          <button id="qaAssignBusBtn" class="qa-btn" type="button">
-            <span class="icon">B</span>
-            <span class="label">تعيين حافلة</span>
-            <span class="sub">الانتقال مباشرة إلى البطاقات</span>
-          </button>
-          <button id="qaRefreshBtn" class="qa-btn" type="button">
-            <span class="icon">R</span>
-            <span class="label">تحديث البيانات</span>
-            <span class="sub">مزامنة فورية مع Firebase</span>
-          </button>
-        </div>
-      </section>
-    </section>
+      <details id="adminModeDrawer" class="panel admin-drawer">
+        <summary class="collapsible-head" style="list-style:none; cursor:pointer;">
+          <div>
+            <h2 style="margin-bottom: 4px;">طبقة البيانات الثانوية</h2>
+            <div class="muted">الطلاب، الاستيراد الذكي، والمزامنة الخلفية تبقى هنا بعيدًا عن مساحة العمليات.</div>
+          </div>
+          <span class="mode-pill">طبقة مخفية</span>
+        </summary>
 
-    <section class="panel waiting-students-panel">
-      <h2>الطلاب المنتظرون <span id="waitingStudentsCount" class="students-count-badge">0</span></h2>
-      <p class="muted">الطلاب الذين طلبوا رحلات والذين ينتظرون الباص</p>
-      <div class="card-actions" style="margin-bottom: 10px;">
-        <button id="clearAllWaitingBtn" class="tiny danger" type="button">حذف الطلبات لكل المناطق</button>
-      </div>
-      <div id="waitingStudentsContainer" class="students-grid"></div>
-      <div id="studentsEmptyState" class="students-empty" style="display:none;">
-        لا يوجد طلاب منتظرون حالياً
-      </div>
-    </section>
+        <div class="admin-toolbar">
+          <button id="adminImportBtn" class="tiny" type="button">مزامنة ذكية</button>
+          <button id="exportStudentsCsvBtn" class="tiny" type="button">تصدير سي إس في</button>
+          <button id="exportStudentsXlsxBtn" class="tiny" type="button">تصدير جدول</button>
+          <button id="toggleAdminAnalyticsBtn" class="tiny warn" type="button">إخفاء/إظهار البيانات</button>
+        </div>
+
+        <div class="muted" style="margin: -2px 0 10px;">سحب وإفلات + تحليل تلقائي + مزامنة خلفية. لا يُفترض أن يكون إكسل هو المسار اليومي.</div>
+
+        <section class="panel" style="margin-top: 0; background: transparent; border: 1px solid rgba(255,255,255,0.08); box-shadow:none;">
+          <h2>البيانات الثانوية <span id="studentsDirectoryCount" class="students-count-badge">0</span></h2>
+          <p class="muted">يتم تجميع الطلاب حسب الموقع وإبقاء هذه الطبقة تحت طبقة العمليات.</p>
+          <div class="analytics-kpis">
+            <article class="analytics-kpi">
+              <div class="label">إجمالي الطلاب</div>
+              <div id="analyticsTotalStudents" class="value">0</div>
+            </article>
+            <article class="analytics-kpi">
+              <div class="label">المواقع</div>
+              <div id="analyticsTotalLocations" class="value">0</div>
+            </article>
+            <article class="analytics-kpi">
+              <div class="label">أعلى موقع</div>
+              <div id="analyticsTopLocation" class="value">-</div>
+            </article>
+          </div>
+
+          <div class="analytics-layout">
+            <section class="analytics-block">
+              <h3>جدول المواقع</h3>
+              <table class="locations-table">
+                <thead>
+                  <tr>
+                    <th>الموقع</th>
+                    <th>الطلاب</th>
+                    <th>%</th>
+                  </tr>
+                </thead>
+                <tbody id="studentsLocationsTableBody"></tbody>
+              </table>
+            </section>
+            <section class="analytics-block">
+              <h3>الدوام حسب المنطقة</h3>
+              <table class="locations-table">
+                <thead>
+                  <tr>
+                    <th>المنطقة</th>
+                    <th>أحد/ثلاثاء</th>
+                    <th>اثنين/أربعاء</th>
+                    <th>يومي</th>
+                    <th>غير محدد</th>
+                    <th>الإجمالي</th>
+                  </tr>
+                </thead>
+                <tbody id="studentsLocationScheduleTableBody"></tbody>
+              </table>
+            </section>
+          </div>
+        </section>
+      </details>
+
+      <section class="layout" style="margin-top: 14px;">
+        <section class="panel">
+          <h2>الحالة المباشرة</h2>
+          <div class="live-grid">
+            <article class="live-card">
+              <div class="title">الطلاب المنتظرون</div>
+              <div id="waitingCount" class="value">0</div>
+            </article>
+            <article class="live-card">
+              <div class="title">المناطق النشطة</div>
+              <div id="zonesCount" class="value">0</div>
+              <div class="hint">المحذوفة: <span id="deletedZonesCount">0</span></div>
+            </article>
+            <article class="live-card">
+              <div class="title">المناطق الحرجة</div>
+              <div id="criticalCount" class="value">0</div>
+            </article>
+            <article class="live-card">
+              <div class="title">الباصات النشطة</div>
+              <div id="activeBusesCount" class="value">0</div>
+              <div id="unassignedZonesCount" class="hint">غير مخصصة: 0</div>
+            </article>
+            <article class="live-card">
+              <div class="title">النظام</div>
+              <div class="signal">
+                <span id="connectionDot" class="dot warn"></span>
+                <span id="connectionState">غير متصل</span>
+              </div>
+              <div class="hint">آخر تحديث: <span id="lastUpdate">-</span></div>
+            </article>
+          </div>
+        </section>
+
+      </section>
 
     <section class="panel">
       <h2>إدارة المناطق</h2>
@@ -981,13 +1542,13 @@
     </section>
 
     <section class="panel">
-      <h2>أسماء المناطق (من Firebase)</h2>
+      <h2>أسماء المناطق (من فايربيس)</h2>
       <div id="zoneNamesContainer" class="names-wrap"></div>
       <p id="zoneNamesEmpty" class="muted" style="display:none; margin-top: 8px;">لا توجد أسماء مناطق بعد.</p>
     </section>
 
     <section id="setupPanel" class="setup" style="display:none;">
-      <h2 style="margin-top:0;">إعداد Firebase للصفحة</h2>
+      <h2 style="margin-top:0;">إعداد فايربيس للصفحة</h2>
       <p style="margin-bottom: 4px;">انسخ نفس إعدادات الويب التي تستخدمها في التطبيق (FIREBASE_WEB_*) وضعها هنا بصيغة JSON:</p>
       <p class="muted">مثال سريع: <code>{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"...","measurementId":"..."}</code></p>
       <textarea id="configInput" placeholder='{"apiKey":"...","projectId":"...","appId":"...","messagingSenderId":"..."}'></textarea>
@@ -1006,6 +1567,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <script>
     (function () {
@@ -1037,6 +1599,26 @@
       var waitingStudentsCount = document.getElementById("waitingStudentsCount");
       var studentsEmptyState = document.getElementById("studentsEmptyState");
       var clearAllWaitingBtn = document.getElementById("clearAllWaitingBtn");
+      var studentsDirectoryCount = document.getElementById("studentsDirectoryCount");
+      var analyticsTotalStudents = document.getElementById("analyticsTotalStudents");
+      var analyticsTotalLocations = document.getElementById("analyticsTotalLocations");
+      var analyticsTopLocation = document.getElementById("analyticsTopLocation");
+      var studentsLocationsTableBody = document.getElementById("studentsLocationsTableBody");
+      var studentsLocationScheduleTableBody = document.getElementById("studentsLocationScheduleTableBody");
+      var exportStudentsCsvBtn = document.getElementById("exportStudentsCsvBtn");
+      var exportStudentsXlsxBtn = document.getElementById("exportStudentsXlsxBtn");
+      var operationsModeBtn = document.getElementById("operationsModeBtn");
+      var adminModeBtn = document.getElementById("adminModeBtn");
+      var operationsModeShell = document.getElementById("operationsModeShell");
+      var adminModeDrawer = document.getElementById("adminModeDrawer");
+      var forceRefreshBtn = document.getElementById("forceRefreshBtn");
+      var toggleAdminAnalyticsBtn = document.getElementById("toggleAdminAnalyticsBtn");
+      var adminImportBtn = document.getElementById("adminImportBtn");
+      var routeVizContainer = document.getElementById("routeVizContainer");
+      var opsActiveBuses = document.getElementById("opsActiveBuses");
+      var opsDelayedCount = document.getElementById("opsDelayedCount");
+      var opsIssuesCount = document.getElementById("opsIssuesCount");
+      var opsTripsToday = document.getElementById("opsTripsToday");
 
       var zoneNameInput = document.getElementById("zoneNameInput");
       var zoneBusInput = document.getElementById("zoneBusInput");
@@ -1067,6 +1649,7 @@
       var unsubscribeWaitingStudents = null;
       var unsubscribeWaitingStudentsAlt = null;
       var unsubscribeWaitingUsers = null;
+      var unsubscribeStudentsDirectory = null;
       var auth = null;
       var currentUser = null;
       var db = null;
@@ -1082,6 +1665,12 @@
       var latestWaitingRideRequests = [];
       var latestWaitingRideRequestsAlt = [];
       var latestWaitingUsers = [];
+      var latestStudentsDirectory = [];
+      var latestLocationStats = [];
+      var latestScheduleStats = [];
+      var latestLocationScheduleStats = [];
+      var dashboardMode = "operations";
+      var adminAnalyticsExpanded = true;
       var hasWaitingUsersSnapshot = false;
       var hasWaitingRideRequestsError = false;
       var hasWaitingRideRequestsAltError = false;
@@ -1162,11 +1751,17 @@
       }
 
       function getDaysLabel(code) {
-        if (code === "all-week") {
+        if (code === "all-week" || code === "daily" || code === "everyday") {
           return "طوال الأسبوع";
         }
-        if (code === "sun-tue-thu") {
+        if (code === "sun-tue-thu" || code === "sunday_tuesday_thursday") {
           return "أحد - ثلاثاء - خميس";
+        }
+        if (code === "sunday_tuesday") {
+          return "أحد / ثلاثاء";
+        }
+        if (code === "monday_wednesday") {
+          return "اثنين / أربعاء";
         }
         return "أيام الدوام";
       }
@@ -1187,9 +1782,9 @@
           return "Offline";
         }
         if (state === "busy") {
-          return "Busy";
+          return "مشغولة";
         }
-        return "Stable";
+        return "مستقرة";
       }
 
       function requireSignedIn(actionLabel) {
@@ -1484,6 +2079,11 @@
           unsubscribeWaitingUsers = null;
         }
 
+        if (typeof unsubscribeStudentsDirectory === "function") {
+          unsubscribeStudentsDirectory();
+          unsubscribeStudentsDirectory = null;
+        }
+
         if (zonesPollingTimer) {
           window.clearInterval(zonesPollingTimer);
           zonesPollingTimer = null;
@@ -1492,6 +2092,7 @@
         latestWaitingRideRequests = [];
         latestWaitingRideRequestsAlt = [];
         latestWaitingUsers = [];
+        latestStudentsDirectory = [];
         hasWaitingUsersSnapshot = false;
         hasWaitingRideRequestsError = false;
         hasWaitingRideRequestsAltError = false;
@@ -1707,7 +2308,7 @@
             var isDeparted = departedBuses.indexOf(bus) !== -1;
             return (
               '<div class="bus-row' + (isPrimaryBus ? ' bus-row-main' : '') + '">' +
-                '<div class="bus-row-label">BUS #' + escapeHtml(bus) + (isPrimaryBus ? ' (رئيسي)' : '') + '</div>' +
+                '<div class="bus-row-label">باص #' + escapeHtml(bus) + (isPrimaryBus ? ' (رئيسي)' : '') + '</div>' +
                 '<div class="bus-row-actions">' +
                   (isDeparted
                     ? '<span class="bus-state">غادر</span>'
@@ -1729,7 +2330,7 @@
             '<div class="card-actions">' +
               '<span class="tiny">' + waiting + ' طلاب</span>' +
               (primaryBus
-                ? '<span class="tiny">BUS #' + escapeHtml(primaryBus) + '</span>'
+                ? '<span class="tiny">باص #' + escapeHtml(primaryBus) + '</span>'
                 : '<span class="tiny danger">بدون باص</span>') +
               (buses.length > 1
                 ? '<span class="bus-extra-count">+' + String(buses.length - 1) + '</span>'
@@ -1819,11 +2420,12 @@
         applyZoneCardFilter();
 
         applyZoneFilterVisibility();
+        refreshOperationsView();
       }
 
       async function seedDefaultZoneNames() {
         if (!db) {
-          setStatus("Firebase غير مهيأ.", "warn");
+          setStatus("فايربيس غير مهيأ.", "warn");
           return;
         }
         if (!requireSignedIn("زرع المناطق الافتراضية")) {
@@ -1855,7 +2457,7 @@
           });
 
           await batch.commit();
-          setStatus("تم زرع أسماء المناطق الافتراضية في Firebase.", "ok");
+          setStatus("تم زرع أسماء المناطق الافتراضية في فايربيس.", "ok");
           showToast("تم زرع المناطق الافتراضية", "ok");
         } catch (error) {
           console.error(error);
@@ -2644,7 +3246,7 @@
 
       async function addZone() {
         if (!db) {
-          setStatus("Firebase غير مهيأ.", "warn");
+          setStatus("فايربيس غير مهيأ.", "warn");
           return;
         }
         if (!requireSignedIn("إضافة منطقة")) {
@@ -2710,13 +3312,670 @@
         return isHttp ? value : "";
       }
 
+      function extractStudentResidence(data) {
+        return readFirstString(data, [
+          "defaultPickupArea",
+          "defaultPickup",
+          "preferredPickupArea",
+          "residenceLocation",
+          "homeLocation",
+          "activeRequestArea"
+        ]);
+      }
+
+      function extractStudentBusNumber(data) {
+        var value = readFirstString(data, [
+          "usualBusNumber",
+          "regularBusNumber",
+          "busNumber",
+          "assignedBus"
+        ]);
+        return normalizeBus(value);
+      }
+
+      function extractStudentSchedule(data) {
+        return readFirstString(data, [
+          "pickupSchedule",
+          "schedule",
+          "studySchedule",
+          "attendanceSchedule"
+        ]);
+      }
+
+      function formatStudentScheduleLabel(code) {
+        var normalized = String(code || "").trim();
+        if (!normalized) {
+          return "";
+        }
+        if (normalized === "all-week" || normalized === "daily" || normalized === "everyday") {
+          return "يومي";
+        }
+        if (normalized === "sun-tue-thu" || normalized === "sunday_tuesday_thursday") {
+          return "أحد - ثلاثاء - خميس";
+        }
+        if (normalized === "sunday_tuesday") {
+          return "أحد / ثلاثاء";
+        }
+        if (normalized === "monday_wednesday") {
+          return "اثنين / أربعاء";
+        }
+        return normalized;
+      }
+
+      function getStudentLocationLabel(data) {
+        var rawLocation = extractStudentResidence(data);
+        var resolved = resolveZoneLabel(rawLocation);
+        var label = String(resolved || rawLocation || "").trim();
+        return label || "غير محدد";
+      }
+
+      function getStudentScheduleLabel(data) {
+        var rawSchedule = extractStudentSchedule(data);
+        var scheduleLabel = formatStudentScheduleLabel(rawSchedule);
+        return String(scheduleLabel || "").trim() || "غير محدد";
+      }
+
+      function getStudentScheduleKey(data) {
+        var rawSchedule = String(extractStudentSchedule(data) || "").trim().toLowerCase();
+        if (!rawSchedule) {
+          return "unknown";
+        }
+
+        if (rawSchedule === "daily" || rawSchedule === "everyday" || rawSchedule === "all-week" || rawSchedule === "يومي") {
+          return "daily";
+        }
+
+        if (
+          rawSchedule === "monday_wednesday" ||
+          rawSchedule === "monday-wednesday" ||
+          rawSchedule === "اثنين / أربعاء" ||
+          rawSchedule === "اثنين/أربعاء"
+        ) {
+          return "monday_wednesday";
+        }
+
+        if (
+          rawSchedule === "sunday_tuesday" ||
+          rawSchedule === "sunday-tuesday" ||
+          rawSchedule === "sun-tue-thu" ||
+          rawSchedule === "sunday_tuesday_thursday" ||
+          rawSchedule === "أحد / ثلاثاء" ||
+          rawSchedule === "أحد/ثلاثاء" ||
+          rawSchedule === "أحد - ثلاثاء - خميس"
+        ) {
+          return "sunday_tuesday";
+        }
+
+        return "unknown";
+      }
+
+      function buildLocationStats(students) {
+        var list = Array.isArray(students) ? students : [];
+        var grouped = {};
+
+        list.forEach(function (item) {
+          var data = item && item.data ? item.data : {};
+          var location = getStudentLocationLabel(data);
+          grouped[location] = (grouped[location] || 0) + 1;
+        });
+
+        var totalStudents = list.length;
+        var rows = Object.keys(grouped).map(function (location) {
+          var count = grouped[location] || 0;
+          var percentage = totalStudents > 0 ? (count * 100) / totalStudents : 0;
+          return {
+            location: location,
+            count: count,
+            percentage: percentage
+          };
+        }).sort(function (a, b) {
+          if (b.count !== a.count) {
+            return b.count - a.count;
+          }
+          return String(a.location).localeCompare(String(b.location), "ar");
+        });
+
+        return {
+          totalStudents: totalStudents,
+          totalLocations: rows.length,
+          rows: rows
+        };
+      }
+
+      function buildScheduleStats(students) {
+        var list = Array.isArray(students) ? students : [];
+        var grouped = {};
+
+        list.forEach(function (item) {
+          var data = item && item.data ? item.data : {};
+          var schedule = getStudentScheduleLabel(data);
+          grouped[schedule] = (grouped[schedule] || 0) + 1;
+        });
+
+        var totalStudents = list.length;
+        var rows = Object.keys(grouped).map(function (schedule) {
+          var count = grouped[schedule] || 0;
+          var percentage = totalStudents > 0 ? (count * 100) / totalStudents : 0;
+          return {
+            schedule: schedule,
+            count: count,
+            percentage: percentage
+          };
+        }).sort(function (a, b) {
+          if (b.count !== a.count) {
+            return b.count - a.count;
+          }
+          return String(a.schedule).localeCompare(String(b.schedule), "ar");
+        });
+
+        return {
+          totalStudents: totalStudents,
+          rows: rows
+        };
+      }
+
+      function buildLocationScheduleStats(students) {
+        var list = Array.isArray(students) ? students : [];
+        var grouped = {};
+
+        list.forEach(function (item) {
+          var data = item && item.data ? item.data : {};
+          var location = getStudentLocationLabel(data);
+          var scheduleKey = getStudentScheduleKey(data);
+
+          if (!grouped[location]) {
+            grouped[location] = {
+              location: location,
+              sunday_tuesday: 0,
+              monday_wednesday: 0,
+              daily: 0,
+              unknown: 0,
+              total: 0
+            };
+          }
+
+          grouped[location].total += 1;
+          if (scheduleKey === "sunday_tuesday") {
+            grouped[location].sunday_tuesday += 1;
+          } else if (scheduleKey === "monday_wednesday") {
+            grouped[location].monday_wednesday += 1;
+          } else if (scheduleKey === "daily") {
+            grouped[location].daily += 1;
+          } else {
+            grouped[location].unknown += 1;
+          }
+        });
+
+        var rows = Object.keys(grouped).map(function (location) {
+          return grouped[location];
+        }).sort(function (a, b) {
+          if (b.total !== a.total) {
+            return b.total - a.total;
+          }
+          return String(a.location).localeCompare(String(b.location), "ar");
+        });
+
+        return {
+          rows: rows
+        };
+      }
+
+      function formatPercent(value) {
+        var numeric = Number(value || 0);
+        if (!Number.isFinite(numeric)) {
+          return "0%";
+        }
+        return numeric.toFixed(1) + "%";
+      }
+
+      function destroyLocationChart() {
+      }
+
+      function renderLocationChart(rows) {
+        return;
+      }
+
+      function downloadBlob(filename, blob) {
+        var url = URL.createObjectURL(blob);
+        var link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+
+      function exportLocationStatsCsv(rows, scheduleRows, locationScheduleRows) {
+        var header = ["المنطقة", "أحد/ثلاثاء", "اثنين/أربعاء", "يومي", "غير محدد", "الإجمالي"];
+        var lines = [header.join(",")];
+
+        (locationScheduleRows || []).forEach(function (row) {
+          var safeLocation = String(row.location || "").replace(/"/g, '""');
+          lines.push([
+            '"' + safeLocation + '"',
+            String(row.sunday_tuesday || 0),
+            String(row.monday_wednesday || 0),
+            String(row.daily || 0),
+            String(row.unknown || 0),
+            String(row.total || 0)
+          ].join(","));
+        });
+
+        var csv = "\uFEFF" + lines.join("\n");
+        downloadBlob("students-location-schedule.csv", new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+      }
+
+      function exportLocationStatsXlsx(rows, scheduleRows, locationScheduleRows) {
+        if (typeof XLSX === "undefined") {
+          exportLocationStatsCsv(rows, scheduleRows, locationScheduleRows);
+          showToast("مكتبة إكسل غير متاحة، تم التصدير سي إس في بدلاً منها", "warn");
+          return;
+        }
+
+        var locationScheduleData = (locationScheduleRows || []).map(function (row) {
+          return {
+            "المنطقة": row.location,
+            "أحد/ثلاثاء": row.sunday_tuesday || 0,
+            "اثنين/أربعاء": row.monday_wednesday || 0,
+            "يومي": row.daily || 0,
+            "غير محدد": row.unknown || 0,
+            "الإجمالي": row.total || 0
+          };
+        });
+        var locationScheduleSheet = XLSX.utils.json_to_sheet(locationScheduleData);
+
+        var workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, locationScheduleSheet, "Location Schedule Stats");
+        XLSX.writeFile(workbook, "students-location-schedule.xlsx");
+      }
+
+      function getZoneBusesState(data) {
+        var buses = Array.isArray(data.assignedBuses)
+          ? data.assignedBuses.map(function (bus) {
+              return normalizeBus(bus);
+            }).filter(Boolean)
+          : [];
+
+        if (!buses.length) {
+          var singleBus = normalizeBus(data.assignedBus || "");
+          if (singleBus) {
+            buses = [singleBus];
+          }
+        }
+
+        var primaryBus = buses.length ? buses[0] : "";
+        var departedBuses = Array.isArray(data.departedBuses)
+          ? data.departedBuses.map(function (bus) {
+              return normalizeBus(bus);
+            }).filter(Boolean)
+          : [];
+
+        if (!departedBuses.length && data.departed && primaryBus) {
+          departedBuses = [primaryBus];
+        }
+
+        departedBuses = departedBuses.filter(function (bus) {
+          return buses.indexOf(bus) !== -1;
+        });
+
+        return {
+          buses: buses,
+          primaryBus: primaryBus,
+          departedBuses: departedBuses
+        };
+      }
+
+      function buildOperationsSnapshot() {
+        var activeDocs = [];
+        var routeRows = [];
+        var alerts = [];
+        var timeline = [];
+        var activeBuses = 0;
+        var delayed = 0;
+        var issues = 0;
+        var tripsToday = 0;
+
+        (Array.isArray(latestZoneDocs) ? latestZoneDocs : []).forEach(function (doc) {
+          var data = doc && typeof doc.data === "function" ? (doc.data() || {}) : {};
+          if (isZoneDeleted(data.isDeleted)) {
+            return;
+          }
+
+          activeDocs.push(doc);
+
+          var zoneName = String(data.name || doc.id || "منطقة").trim();
+          var waiting = getStudentsWaitingValue(data);
+          if (!Number.isFinite(waiting) || waiting < 0) {
+            waiting = 0;
+          }
+
+          var severity = severityFromWaiting(waiting);
+          var zoneState = normalizeZoneState(data.zoneState || severity);
+          if (zoneState === "offline") {
+            severity = "critical";
+          } else if (zoneState === "busy" && severity === "stable") {
+            severity = "moderate";
+          }
+
+          var busesState = getZoneBusesState(data);
+          var primaryBus = busesState.primaryBus;
+          var departedPrimary = !!primaryBus && busesState.departedBuses.indexOf(primaryBus) !== -1;
+          var timestamp = data.updatedAt && typeof data.updatedAt.toDate === "function"
+            ? data.updatedAt.toDate()
+            : new Date(Number(data.updatedAt || data.createdAt || Date.now()));
+
+          if (primaryBus) {
+            activeBuses += 1;
+          }
+
+          if (waiting >= 5 || zoneState === "busy" || zoneState === "offline") {
+            delayed += 1;
+          }
+
+          if (!primaryBus || zoneState === "offline" || waiting >= 8) {
+            issues += 1;
+          }
+
+          if (primaryBus) {
+            tripsToday += 1;
+          }
+
+          routeRows.push({
+            name: zoneName,
+            waiting: waiting,
+            severity: severity,
+            zoneState: zoneState,
+            primaryBus: primaryBus,
+            departed: departedPrimary,
+            updatedAt: timestamp
+          });
+
+          timeline.push({
+            time: timestamp,
+            title: zoneName,
+            note: waiting > 0 ? (String(waiting) + " طلاب في الانتظار") : "لا يوجد طلبات حالية",
+            severity: severity,
+            bus: primaryBus
+          });
+
+          if (!primaryBus && waiting > 0) {
+            alerts.push({
+              severity: "critical",
+              title: "منطقة بدون باص",
+              note: zoneName + " تحتاج تعيين باص قبل تراكم الطلبات.",
+              action: "Assign bus"
+            });
+          } else if (zoneState === "offline") {
+            alerts.push({
+              severity: "critical",
+              title: "منطقة متوقفة",
+              note: zoneName + " تظهر بحالة offline وتحتاج مراجعة فورية.",
+              action: "Inspect"
+            });
+          } else if (waiting >= 8) {
+            alerts.push({
+              severity: "warn",
+              title: "ازدحام مرتفع",
+              note: zoneName + " لديها " + String(waiting) + " طالباً منتظراً.",
+              action: "Dispatch"
+            });
+          }
+        });
+
+        routeRows.sort(function (a, b) {
+          if (b.waiting !== a.waiting) {
+            return b.waiting - a.waiting;
+          }
+          return String(a.name).localeCompare(String(b.name), "ar");
+        });
+
+        timeline.sort(function (a, b) {
+          return Number(b.time || 0) - Number(a.time || 0);
+        });
+
+        return {
+          activeCount: activeDocs.length,
+          activeBuses: activeBuses,
+          delayed: delayed,
+          issues: issues,
+          tripsToday: tripsToday,
+          routes: routeRows,
+          alerts: alerts,
+          timeline: timeline
+        };
+      }
+
+      function renderOperationsSnapshot() {
+        var snapshot = buildOperationsSnapshot();
+
+        if (opsActiveBuses) {
+          opsActiveBuses.textContent = String(snapshot.activeBuses);
+        }
+        if (opsDelayedCount) {
+          opsDelayedCount.textContent = String(snapshot.delayed);
+        }
+        if (opsIssuesCount) {
+          opsIssuesCount.textContent = String(snapshot.issues);
+        }
+        if (opsTripsToday) {
+          opsTripsToday.textContent = String(snapshot.tripsToday);
+        }
+
+        if (routeVizContainer) {
+          if (!snapshot.routes.length) {
+            routeVizContainer.innerHTML = '<div class="route-step"><strong>لا توجد مناطق نشطة</strong><span class="meta">سيظهر العرض التشغيلي هنا بعد المزامنة.</span></div>';
+          } else {
+            routeVizContainer.innerHTML = snapshot.routes.slice(0, 6).map(function (row) {
+              var busLabel = row.primaryBus ? ("باص #" + escapeHtml(row.primaryBus)) : "بدون باص";
+              var severityLabel = zoneStateBadgeLabel(row.zoneState);
+              var statusClass = row.severity === "critical" ? "critical" : (row.severity === "moderate" ? "warn" : "ok");
+              return (
+                '<div class="route-step ' + statusClass + '">' +
+                  '<div>' +
+                    '<strong>' + escapeHtml(row.name) + '</strong>' +
+                    '<div class="meta">' + escapeHtml(busLabel) + ' · ' + escapeHtml(severityLabel) + '</div>' +
+                  '</div>' +
+                  '<div class="tiny ' + statusClass + '">' + String(row.waiting) + ' منتظر</div>' +
+                '</div>'
+              );
+            }).join("");
+          }
+        }
+
+      }
+
+      function setDashboardMode(mode) {
+        dashboardMode = mode === "admin" ? "admin" : "operations";
+
+        if (operationsModeBtn) {
+          operationsModeBtn.classList.toggle("active", dashboardMode === "operations");
+        }
+        if (adminModeBtn) {
+          adminModeBtn.classList.toggle("active", dashboardMode === "admin");
+        }
+        if (adminModeDrawer) {
+          adminModeDrawer.classList.toggle("open", dashboardMode === "admin");
+          adminModeDrawer.open = dashboardMode === "admin";
+        }
+        if (operationsModeShell) {
+          operationsModeShell.style.opacity = dashboardMode === "operations" ? "1" : "0.94";
+        }
+        if (protectedContent) {
+          protectedContent.setAttribute("data-dashboard-mode", dashboardMode);
+        }
+      }
+
+      function toggleAdminAnalytics() {
+        adminAnalyticsExpanded = !adminAnalyticsExpanded;
+        if (adminModeDrawer) {
+          adminModeDrawer.open = true;
+        }
+        var analyticsPanel = adminModeDrawer ? adminModeDrawer.querySelector("section.panel") : null;
+        if (analyticsPanel) {
+          analyticsPanel.style.display = adminAnalyticsExpanded ? "block" : "none";
+        }
+        if (toggleAdminAnalyticsBtn) {
+          toggleAdminAnalyticsBtn.textContent = adminAnalyticsExpanded ? "إخفاء البيانات" : "إظهار البيانات";
+        }
+      }
+
+      function refreshOperationsView() {
+        renderOperationsSnapshot();
+        if (dashboardMode === "admin" && adminModeDrawer) {
+          adminModeDrawer.classList.add("open");
+          adminModeDrawer.open = true;
+        }
+      }
+
+      function renderStudentsDirectory(students) {
+        var list = Array.isArray(students) ? students : [];
+        var stats = buildLocationStats(list);
+        var scheduleStats = buildScheduleStats(list);
+        var locationScheduleStats = buildLocationScheduleStats(list);
+        latestLocationStats = stats.rows.slice();
+        latestScheduleStats = scheduleStats.rows.slice();
+        latestLocationScheduleStats = locationScheduleStats.rows.slice();
+
+        if (studentsDirectoryCount) {
+          studentsDirectoryCount.textContent = String(stats.totalStudents);
+        }
+
+        if (analyticsTotalStudents) {
+          analyticsTotalStudents.textContent = String(stats.totalStudents);
+        }
+
+        if (analyticsTotalLocations) {
+          analyticsTotalLocations.textContent = String(stats.totalLocations);
+        }
+
+        if (analyticsTopLocation) {
+          analyticsTopLocation.textContent = stats.rows.length
+            ? (stats.rows[0].location + " (" + stats.rows[0].count + ")")
+            : "-";
+        }
+
+        if (studentsLocationsTableBody) {
+          studentsLocationsTableBody.innerHTML = "";
+          stats.rows.forEach(function (row) {
+            var tr = document.createElement("tr");
+
+            var tdLocation = document.createElement("td");
+            tdLocation.textContent = row.location;
+
+            var tdCount = document.createElement("td");
+            tdCount.textContent = String(row.count);
+
+            var tdPercentage = document.createElement("td");
+            tdPercentage.textContent = formatPercent(row.percentage);
+
+            tr.appendChild(tdLocation);
+            tr.appendChild(tdCount);
+            tr.appendChild(tdPercentage);
+            studentsLocationsTableBody.appendChild(tr);
+          });
+        }
+
+        if (studentsLocationScheduleTableBody) {
+          studentsLocationScheduleTableBody.innerHTML = "";
+          locationScheduleStats.rows.forEach(function (row) {
+            var tr = document.createElement("tr");
+
+            var tdLocation = document.createElement("td");
+            tdLocation.textContent = row.location;
+
+            var tdSundayTuesday = document.createElement("td");
+            tdSundayTuesday.textContent = String(row.sunday_tuesday || 0);
+
+            var tdMondayWednesday = document.createElement("td");
+            tdMondayWednesday.textContent = String(row.monday_wednesday || 0);
+
+            var tdDaily = document.createElement("td");
+            tdDaily.textContent = String(row.daily || 0);
+
+            var tdUnknown = document.createElement("td");
+            tdUnknown.textContent = String(row.unknown || 0);
+
+            var tdTotal = document.createElement("td");
+            tdTotal.textContent = String(row.total || 0);
+
+            tr.appendChild(tdLocation);
+            tr.appendChild(tdSundayTuesday);
+            tr.appendChild(tdMondayWednesday);
+            tr.appendChild(tdDaily);
+            tr.appendChild(tdUnknown);
+            tr.appendChild(tdTotal);
+            studentsLocationScheduleTableBody.appendChild(tr);
+          });
+        }
+
+        if (!list.length) {
+          destroyLocationChart();
+          refreshOperationsView();
+          return;
+        }
+
+        refreshOperationsView();
+      }
+
+      function startStudentsDirectoryListening() {
+        if (!db) {
+          return;
+        }
+
+        if (typeof unsubscribeStudentsDirectory === "function") {
+          unsubscribeStudentsDirectory();
+          unsubscribeStudentsDirectory = null;
+        }
+
+        unsubscribeStudentsDirectory = db
+          .collection("users")
+          .limit(300)
+          .onSnapshot(
+            function (snapshot) {
+              var docs = snapshot && snapshot.docs ? snapshot.docs : [];
+              latestStudentsDirectory = docs
+                .map(function (doc) {
+                  return { id: doc.id, data: doc.data() || {} };
+                })
+                .filter(function (item) {
+                  var role = String(readFirstString(item.data, ["role"]) || "").toLowerCase().trim();
+                  if (role === "leader" || role === "admin") {
+                    return false;
+                  }
+
+                  var hasEmail = !!readFirstString(item.data, ["email"]);
+                  var hasName = !!readFirstString(item.data, ["name", "fullName", "displayName"]);
+                  var hasStudentId = !!readFirstString(item.data, ["studentId", "universityId"]);
+                  return hasEmail || hasName || hasStudentId;
+                })
+                .sort(function (a, b) {
+                  var nameA = readFirstString(a.data, ["name", "fullName", "displayName", "email", "studentId"]).toLowerCase();
+                  var nameB = readFirstString(b.data, ["name", "fullName", "displayName", "email", "studentId"]).toLowerCase();
+                  return nameA.localeCompare(nameB, "ar");
+                });
+
+              renderStudentsDirectory(latestStudentsDirectory);
+            },
+            function (error) {
+              console.error("خطأ في قراءة بيانات الطلاب:", error);
+              latestStudentsDirectory = [];
+              renderStudentsDirectory([]);
+              showToast("تعذر تحميل بيانات الطلاب", "error");
+            }
+          );
+      }
+
       async function loadStudentProfile(studentKey) {
         if (!db || !studentKey) {
           return {
             id: "",
             name: "Student",
             email: "",
-            photoUrl: ""
+            photoUrl: "",
+            defaultPickupArea: "",
+            usualBusNumber: "",
+            pickupSchedule: ""
           };
         }
 
@@ -2729,7 +3988,10 @@
           id: String(studentKey),
           name: String(studentKey),
           email: "",
-          photoUrl: ""
+          photoUrl: "",
+          defaultPickupArea: "",
+          usualBusNumber: "",
+          pickupSchedule: ""
         };
 
         try {
@@ -2759,7 +4021,10 @@
                 "studentPhotoURL",
                 "studentPicture",
                 "studentAvatar"
-              ]))
+              ])),
+              defaultPickupArea: extractStudentResidence(byId),
+              usualBusNumber: extractStudentBusNumber(byId),
+              pickupSchedule: extractStudentSchedule(byId)
             };
             waitingStudentsData[cacheKey] = profile;
             return profile;
@@ -2796,7 +4061,10 @@
                   "studentPhotoURL",
                   "studentPicture",
                   "studentAvatar"
-                ]))
+                ])),
+                defaultPickupArea: extractStudentResidence(byField),
+                usualBusNumber: extractStudentBusNumber(byField),
+                pickupSchedule: extractStudentSchedule(byField)
               };
               break;
             }
@@ -2941,6 +4209,9 @@
               id: String(entry.studentKey),
               name: readFirstString(rideData, ["name", "fullName", "displayName"]) || String(entry.studentKey),
               email: readFirstString(rideData, ["email"]),
+              defaultPickupArea: extractStudentResidence(rideData),
+              usualBusNumber: extractStudentBusNumber(rideData),
+              pickupSchedule: extractStudentSchedule(rideData),
               photoUrl: normalizePhotoUrl(readFirstString(rideData, [
                 "photoUrl",
                 "photoURL",
@@ -2989,6 +4260,9 @@
           var displayName = requestName || profile.name || String(entry.studentKey);
           var displayEmail = requestEmail || profile.email || "";
           var displayPhoto = requestPhoto || profile.photoUrl || "";
+          var residenceLabel = String(profile.defaultPickupArea || "").trim() || getStudentLocationLabel(profile);
+          var busLabel = String(profile.usualBusNumber || "").trim();
+          var scheduleLabel = formatStudentScheduleLabel(profile.pickupSchedule);
 
           var card = document.createElement("div");
           card.className = "student-card";
@@ -3018,6 +4292,27 @@
 
           var metaDiv = document.createElement("div");
           metaDiv.className = "student-meta";
+
+          if (residenceLabel) {
+            var residenceBadge = document.createElement("span");
+            residenceBadge.className = "student-badge";
+            residenceBadge.textContent = "السكن: " + residenceLabel;
+            metaDiv.appendChild(residenceBadge);
+          }
+
+          if (busLabel) {
+            var busBadge = document.createElement("span");
+            busBadge.className = "student-badge";
+            busBadge.textContent = "الباص: " + busLabel;
+            metaDiv.appendChild(busBadge);
+          }
+
+          if (scheduleLabel) {
+            var scheduleBadge = document.createElement("span");
+            scheduleBadge.className = "student-badge";
+            scheduleBadge.textContent = "الدوام: " + scheduleLabel;
+            metaDiv.appendChild(scheduleBadge);
+          }
 
           var zoneId = String(readFirstString(rideData, ["zoneId", "zoneName", "activeRequestArea", "area"]) || "").trim();
           var zoneLabel = resolveZoneLabel(zoneId);
@@ -3291,12 +4586,13 @@
           );
 
         startWaitingStudentsListening();
+        startStudentsDirectoryListening();
       }
 
       function initFirebaseAndLoad() {
         var source = getConfigFromPageOrStorage();
         if (!source.hasRequired) {
-          setStatus("إعداد Firebase ناقص. افتح قسم الإعدادات وأضف القيم.", "warn");
+          setStatus("إعداد فايربيس ناقص. افتح قسم الإعدادات وأضف القيم.", "warn");
           setupPanel.style.display = "block";
           return;
         }
@@ -3325,7 +4621,7 @@
               authPanel.style.display = "none";
               setConnectionState(true);
               setStatus(
-                "تم الربط مع Firebase وتسجيل الدخول: " + (currentUser.email || currentUser.uid),
+                "تم الربط مع فايربيس وتسجيل الدخول: " + (currentUser.email || currentUser.uid),
                 "ok"
               );
               showToast("تم تسجيل الدخول بنجاح", "ok");
@@ -3347,17 +4643,86 @@
               criticalCount.textContent = "0";
               activeBusesCount.textContent = "0";
               unassignedZonesCount.textContent = "غير مخصصة: 0";
-              setStatus("تم الربط مع Firebase. سجل دخول للمتابعة.", "warn");
+              renderStudentsDirectory([]);
+              setStatus("تم الربط مع فايربيس. سجل دخول للمتابعة.", "warn");
               applyZoneFilterVisibility();
             }
           });
         } catch (error) {
           console.error(error);
-          setStatus("فشل تهيئة Firebase: " + (error.message || ""), "error");
+          setStatus("فشل تهيئة فايربيس: " + (error.message || ""), "error");
         }
       }
 
       addZoneBtn.addEventListener("click", addZone);
+
+      if (operationsModeBtn) {
+        operationsModeBtn.addEventListener("click", function () {
+          setDashboardMode("operations");
+        });
+      }
+
+      if (adminModeBtn) {
+        adminModeBtn.addEventListener("click", function () {
+          setDashboardMode("admin");
+          refreshOperationsView();
+        });
+      }
+
+      if (forceRefreshBtn) {
+        forceRefreshBtn.addEventListener("click", function () {
+          startListening();
+          showToast("تم تحديث العرض التشغيلي", "ok");
+        });
+      }
+
+      if (toggleAdminAnalyticsBtn) {
+        toggleAdminAnalyticsBtn.addEventListener("click", function () {
+          toggleAdminAnalytics();
+        });
+      }
+
+      if (adminImportBtn) {
+        adminImportBtn.addEventListener("click", function () {
+          setDashboardMode("admin");
+          if (adminModeDrawer) {
+            adminModeDrawer.classList.add("open");
+            adminModeDrawer.open = true;
+          }
+          if (studentsDirectoryEmpty) {
+            studentsDirectoryEmpty.textContent = "المزامنة الذكية والسحب والإفلات تتم من طبقة البيانات.";
+          }
+          showToast("المزامنة الذكية جاهزة من طبقة البيانات", "ok");
+        });
+      }
+
+      document.addEventListener("keydown", function (event) {
+        if (!event.altKey || event.ctrlKey || event.metaKey) {
+          return;
+        }
+
+        var key = String(event.key || "").toLowerCase();
+        if (key === "1") {
+          setDashboardMode("operations");
+          showToast("تم الانتقال إلى وضع العمليات", "ok");
+        } else if (key === "2") {
+          setDashboardMode("admin");
+          if (adminModeDrawer) {
+            adminModeDrawer.classList.add("open");
+            adminModeDrawer.open = true;
+          }
+          showToast("تم فتح طبقة البيانات", "ok");
+        } else if (key === "r") {
+          startListening();
+          showToast("تحديث تشغيلي فوري", "ok");
+        }
+      });
+
+      if (adminModeDrawer) {
+        adminModeDrawer.addEventListener("toggle", function () {
+          adminModeDrawer.classList.toggle("open", adminModeDrawer.open);
+        });
+      }
 
       toggleAuthPanelBtn.addEventListener("click", function () {
         authPanel.style.display = "block";
@@ -3372,7 +4737,7 @@
 
       signInBtn.addEventListener("click", async function () {
         if (!auth) {
-          setStatus("Firebase Auth غير مهيأ.", "error");
+          setStatus("مصادقة فايربيس غير مهيأة.", "error");
           return;
         }
         var email = emailInput.value.trim();
@@ -3394,11 +4759,12 @@
           var code = String(error && error.code ? error.code : "");
           if (code === "auth/invalid-credential" || code === "auth/invalid-login-credentials") {
             setStatus(
-              "بيانات الدخول غير صحيحة، أو هذا الحساب لا يملك كلمة مرور (قد يكون مسجلاً عبر Google/Microsoft فقط).",
+              "بيانات الدخول غير صحيحة، أو أن هذا الحساب لا يملك كلمة مرور (قد يكون مسجلاً عبر Google أو Microsoft فقط).",
               "error"
             );
           } else
           if (code === "auth/user-not-found") {
+            setDashboardMode("operations");
             setStatus("البريد الإلكتروني غير مسجل.", "error");
           } else if (code === "auth/wrong-password") {
             setStatus("كلمة المرور غير صحيحة.", "error");
@@ -3437,8 +4803,20 @@
         seedDefaultZoneNames();
       });
 
-      clearAllWaitingBtn.addEventListener("click", function () {
-        clearRequestsForAllZones();
+      if (clearAllWaitingBtn) {
+        clearAllWaitingBtn.addEventListener("click", function () {
+          clearRequestsForAllZones();
+        });
+      }
+
+      exportStudentsCsvBtn.addEventListener("click", function () {
+        exportLocationStatsCsv(latestLocationStats, latestScheduleStats, latestLocationScheduleStats);
+          showToast("تم تصدير إحصائيات المواقع والدوام سي إس في", "ok");
+      });
+
+      exportStudentsXlsxBtn.addEventListener("click", function () {
+        exportLocationStatsXlsx(latestLocationStats, latestScheduleStats, latestLocationScheduleStats);
+          showToast("تم تصدير إحصائيات المواقع والدوام إكسل", "ok");
       });
 
       qaAddZoneBtn.addEventListener("click", function () {
@@ -3449,7 +4827,7 @@
       qaAssignBusBtn.addEventListener("click", function () {
         var firstBusInput = zonesContainer.querySelector('[data-role="bus"]');
         if (!firstBusInput) {
-          showToast("لا توجد مناطق نشطة حالياً", "warn");
+          showToast("لا توجد مناطق نشطة حاليًا", "warn");
           return;
         }
         firstBusInput.focus();
@@ -3458,11 +4836,11 @@
 
       qaRefreshBtn.addEventListener("click", function () {
         startListening();
-        showToast("جاري التحديث", "ok");
+        showToast("جارٍ التحديث", "ok");
       });
 
       fabQuickBtn.addEventListener("click", function () {
-        document.getElementById("quickActionsPanel").scrollIntoView({
+        document.getElementById("operationsModeShell").scrollIntoView({
           behavior: "smooth",
           block: "start"
         });
@@ -3477,7 +4855,7 @@
           var parsed = JSON.parse(configInput.value.trim());
           localStorage.setItem("WAYFINDER_FIREBASE_CONFIG", JSON.stringify(parsed));
           window.WAYFINDER_FIREBASE_CONFIG = parsed;
-          setStatus("تم حفظ إعداد Firebase محلياً. اضغط تحديث البيانات.", "ok");
+          setStatus("تم حفظ إعداد فايربيس محليًا. اضغط تحديث البيانات.", "ok");
         } catch (error) {
           setStatus("تنسيق JSON غير صحيح.", "error");
         }
@@ -3485,7 +4863,7 @@
 
       clearConfigBtn.addEventListener("click", function () {
         localStorage.removeItem("WAYFINDER_FIREBASE_CONFIG");
-        setStatus("تم مسح إعداد Firebase المحلي.", "warn");
+        setStatus("تم مسح إعداد فايربيس المحلي.", "warn");
       });
 
       filterAllBtn.addEventListener("click", function () {
@@ -3513,6 +4891,7 @@
       setConnectionState(false);
       setAuthenticatedUi(false);
       setZoneViewFilter("all");
+      setDashboardMode("operations");
       initFirebaseAndLoad();
     })();
   </script>

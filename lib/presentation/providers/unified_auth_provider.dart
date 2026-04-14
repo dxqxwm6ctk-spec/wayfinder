@@ -57,6 +57,7 @@ class UnifiedAuthProvider extends ChangeNotifier {
   String? _studentMajor;
   String? _studentPhone;
   String? _defaultPickupArea;
+  String? _pickupSchedule;
   String? _usualBusNumber;
   AuthMethod? _lastAuthMethod;
   bool _isLoading = false;
@@ -112,7 +113,14 @@ class UnifiedAuthProvider extends ChangeNotifier {
   String? get studentMajor => _studentMajor;
   String? get studentPhone => _studentPhone;
   String? get defaultPickupArea => _defaultPickupArea;
+  String? get pickupSchedule => _pickupSchedule;
   String? get usualBusNumber => _usualBusNumber;
+  bool get hasRequiredResidenceLocation =>
+      (_defaultPickupArea ?? '').trim().isNotEmpty;
+  bool get hasRequiredPickupSchedule =>
+      (_pickupSchedule ?? '').trim().isNotEmpty;
+  bool get hasRequiredOnboardingDetails =>
+      hasRequiredResidenceLocation && hasRequiredPickupSchedule;
   bool get isAuthenticated => _currentUser != null || _currentEmail != null;
   bool get isLoading => _isLoading;
   bool get isProfileLoading => _isProfileLoading;
@@ -190,6 +198,11 @@ class UnifiedAuthProvider extends ChangeNotifier {
           'defaultPickupArea',
           'defaultPickup',
           'preferredPickupArea',
+        ]);
+        _pickupSchedule = _readStringValue(data, <String>[
+          'pickupSchedule',
+          'studySchedule',
+          'schedule',
         ]);
         _usualBusNumber = _readStringValue(data, <String>[
           'usualBusNumber',
@@ -310,6 +323,7 @@ class UnifiedAuthProvider extends ChangeNotifier {
     _studentMajor = null;
     _studentPhone = null;
     _defaultPickupArea = null;
+    _pickupSchedule = null;
     _usualBusNumber = null;
   }
 
@@ -317,6 +331,7 @@ class UnifiedAuthProvider extends ChangeNotifier {
   Future<bool> updateEditableStudentProfile({
     required String defaultPickupArea,
     required String usualBusNumber,
+    String? pickupSchedule,
   }) async {
     final firebase.User? user = _currentUser;
     if (user == null) {
@@ -326,6 +341,8 @@ class UnifiedAuthProvider extends ChangeNotifier {
     }
 
     final String pickup = defaultPickupArea.trim();
+    final String schedule =
+        pickupSchedule?.trim() ?? _pickupSchedule?.trim() ?? '';
     final String bus = usualBusNumber.trim().toUpperCase().replaceAll(' ', '');
 
     if (bus.isNotEmpty && !_busNumberPattern.hasMatch(bus)) {
@@ -337,6 +354,9 @@ class UnifiedAuthProvider extends ChangeNotifier {
 
     _authError = null;
     _defaultPickupArea = pickup;
+    if (pickupSchedule != null) {
+      _pickupSchedule = schedule;
+    }
     _usualBusNumber = bus;
     notifyListeners();
 
@@ -346,6 +366,7 @@ class UnifiedAuthProvider extends ChangeNotifier {
         await _firebaseService
             .saveUserData(user.uid, <String, dynamic>{
               'defaultPickupArea': pickup,
+              if (pickupSchedule != null) 'pickupSchedule': schedule,
               'usualBusNumber': bus,
               'updatedAt': FieldValue.serverTimestamp(),
             })

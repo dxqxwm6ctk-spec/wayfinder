@@ -26,6 +26,12 @@ enum _ProfileMenuAction {
 class _ProfileScreenState extends State<ProfileScreen> {
   static final RegExp _busNumberPattern = RegExp(r'^[A-Za-z0-9-]{1,12}$');
 
+  static const List<_ScheduleOption> _scheduleOptions = <_ScheduleOption>[
+    _ScheduleOption('أحد / ثلاثاء', 'sunday_tuesday'),
+    _ScheduleOption('اثنين / أربعاء', 'monday_wednesday'),
+    _ScheduleOption('يومي', 'daily'),
+  ];
+
   static const List<String> _pickupLocations = <String>[
     // المناطق الشمالية
     'الجبل الشمالي',
@@ -61,6 +67,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   final TextEditingController _busController = TextEditingController();
   String? _selectedLocation;
+  String? _selectedSchedule;
   bool _isEditing = false;
   bool _isSaving = false;
 
@@ -83,11 +90,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ? savedLocation
         : _pickupLocations.first;
 
+    final String? savedSchedule = auth.pickupSchedule?.trim().isNotEmpty == true
+        ? auth.pickupSchedule!.trim()
+        : null;
+    final _ScheduleOption matchedSchedule = _scheduleOptions.firstWhere(
+      (_ScheduleOption option) => option.value == savedSchedule,
+      orElse: () => _scheduleOptions.first,
+    );
+    _selectedSchedule = matchedSchedule.value;
+
     _busController.text = auth.usualBusNumber?.trim() ?? '';
   }
 
   Future<void> _saveEditableFields(UnifiedAuthProvider auth, bool isArabic) async {
     final String pickup = _selectedLocation ?? '';
+    final String schedule = _selectedSchedule ?? '';
     final String bus = _busController.text.trim().toUpperCase().replaceAll(' ', '');
 
     if (pickup.isEmpty) {
@@ -114,10 +131,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
+    if (schedule.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isArabic ? 'اختر نوع الدوام.' : 'Please select your schedule.',
+          ),
+        ),
+      );
+      return;
+    }
+
     setState(() => _isSaving = true);
     final bool success = await auth.updateEditableStudentProfile(
       defaultPickupArea: pickup,
       usualBusNumber: bus,
+      pickupSchedule: schedule,
     );
 
     if (!mounted) {
@@ -382,6 +411,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final String displayBus = auth.usualBusNumber?.trim().isNotEmpty == true
       ? auth.usualBusNumber!.trim()
       : (isArabic ? 'غير متوفر' : 'Not available');
+    final String displaySchedule = auth.pickupSchedule?.trim().isNotEmpty == true
+      ? _formatScheduleLabel(auth.pickupSchedule!.trim())
+      : (isArabic ? 'غير متوفر' : 'Not available');
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     _syncControllers(auth);
@@ -606,6 +638,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         label: isArabic ? 'الدور' : 'Role',
                         value: displayRole,
                       ),
+                      const SizedBox(height: 12),
+                      _ProfileMetaRow(
+                        icon: Icons.schedule_outlined,
+                        label: isArabic ? 'نوع الدوام' : 'Schedule Type',
+                        value: displaySchedule,
+                      ),
                     ],
                   ),
                 ),
@@ -622,8 +660,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 6),
                       Text(
                         isArabic
-                            ? 'يمكنك تعديل السكن/الانطلاق ورقم الباص فقط.'
-                            : 'Only home pickup and bus number are editable.',
+                            ? 'يمكنك تعديل السكن/الانطلاق ونوع الدوام ورقم الباص.'
+                            : 'You can edit pickup location, schedule type, and bus number.',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                       const SizedBox(height: 14),
@@ -643,6 +681,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           onChanged: (String? newValue) {
                             setState(() => _selectedLocation = newValue);
                           },
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          isArabic ? 'نوع الدوام' : 'Schedule Type',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: _scheduleOptions.map((_ScheduleOption option) {
+                            final bool selected = _selectedSchedule == option.value;
+                            return ChoiceChip(
+                              label: Text(option.label),
+                              selected: selected,
+                              onSelected: (bool value) {
+                                if (!value) {
+                                  return;
+                                }
+                                setState(() => _selectedSchedule = option.value);
+                              },
+                            );
+                          }).toList(growable: false),
                         ),
                         const SizedBox(height: 12),
                         TextField(
@@ -698,6 +759,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           label: isArabic ? 'رقم الباص المعتاد' : 'Usual Bus Number',
                           value: displayBus,
                         ),
+                        const SizedBox(height: 12),
+                        _ProfileMetaRow(
+                          icon: Icons.schedule_outlined,
+                          label: isArabic ? 'نوع الدوام' : 'Schedule Type',
+                          value: displaySchedule,
+                        ),
                       ],
                     ],
                   ),
@@ -747,6 +814,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
+String _formatScheduleLabel(String code) {
+  final String normalized = code.trim();
+  if (normalized.isEmpty) {
+    return '';
+  }
+
+  if (normalized == 'all-week' || normalized == 'daily' || normalized == 'everyday') {
+    return 'يومي';
+  }
+  if (normalized == 'sun-tue-thu' || normalized == 'sunday_tuesday_thursday') {
+    return 'أحد - ثلاثاء - خميس';
+  }
+  if (normalized == 'sunday_tuesday') {
+    return 'أحد / ثلاثاء';
+  }
+  if (normalized == 'monday_wednesday') {
+    return 'اثنين / أربعاء';
+  }
+
+  return normalized;
+}
+
 class _GlassPanel extends StatelessWidget {
   const _GlassPanel({
     required this.child,
@@ -785,6 +874,13 @@ class _GlassPanel extends StatelessWidget {
       child: child,
     );
   }
+}
+
+class _ScheduleOption {
+  const _ScheduleOption(this.label, this.value);
+
+  final String label;
+  final String value;
 }
 
 class _ProfileMetaRow extends StatelessWidget {

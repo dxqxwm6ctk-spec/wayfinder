@@ -6,6 +6,7 @@ import '../providers/unified_auth_provider.dart';
 import 'leader_web_screen.dart';
 import 'leader_shell_screen.dart';
 import 'main_shell_screen.dart';
+import 'mandatory_pickup_area_screen.dart';
 import 'role_selection_screen.dart';
 
 class AuthWrapperScreen extends StatelessWidget {
@@ -29,6 +30,10 @@ class AuthWrapperScreen extends StatelessWidget {
       final String role = (auth.studentRole ?? '').trim().toLowerCase();
       if (role == 'leader') {
         return kIsWeb ? const LeaderWebScreen() : const LeaderShellScreen();
+      }
+
+      if (!auth.hasRequiredOnboardingDetails) {
+        return const MandatoryPickupAreaScreen();
       }
 
       return const MainShellScreen();
