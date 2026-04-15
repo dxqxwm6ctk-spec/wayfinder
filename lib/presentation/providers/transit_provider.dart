@@ -56,6 +56,7 @@ class TransitProvider extends ChangeNotifier {
   final Map<String, int> _boardedStudentsByZone = <String, int>{};
   bool _hasActiveStudentRequest = false;
   String? _activeRequestArea;
+  int _activeRequestConfirmedAtMillis = 0;
   DateTime? _lastUpdatedAt;
 
   bool get loading => _loading;
@@ -491,7 +492,7 @@ class TransitProvider extends ChangeNotifier {
     return departed.any((String bus) => _normalize(bus) == _normalize(busNumber));
   }
 
-  RequestExecutionSummary executeImmediateRequest() {
+  Future<RequestExecutionSummary> executeImmediateRequest() async {
     String effectiveArea = _selectedPickupArea;
     Zone? zone = _zoneByPickupArea(effectiveArea);
 
@@ -537,14 +538,16 @@ class TransitProvider extends ChangeNotifier {
 
     _hasActiveStudentRequest = true;
     _activeRequestArea = effectiveArea;
+    _activeRequestConfirmedAtMillis = DateTime.now().millisecondsSinceEpoch;
     if (zone != null) {
       _lastHandledClearedAtByZone[zone.id] =
           _requestsClearedAtByZone[zone.id] ?? 0;
     }
     _recomputeZoneSeverityAndSort();
     _touchUpdatedAt();
-    _syncActiveRequestToRemote();
     notifyListeners();
+
+    await _syncActiveRequestToRemoteNow();
 
     final Zone? updatedZone = _zoneByPickupArea(effectiveArea);
     return RequestExecutionSummary(
@@ -734,6 +737,7 @@ class TransitProvider extends ChangeNotifier {
       'studentsWaiting': 0,
       'requestsClearedAt': clearedAt,
     });
+    _clearPendingStudentRequestsForZone(zoneId);
     return removed;
   }
 
@@ -771,6 +775,8 @@ class TransitProvider extends ChangeNotifier {
         'requestsClearedAt': clearedAt,
       });
     }
+
+    _clearAllPendingStudentRequests();
 
     return removed;
   }
@@ -1440,6 +1446,11 @@ class TransitProvider extends ChangeNotifier {
       return;
     }
 
+    // Only clear if the clearance happened AFTER the student made their request.
+    if (clearedAt <= _activeRequestConfirmedAtMillis) {
+      return;
+    }
+
     final int lastHandled = _lastHandledClearedAtByZone[zone.id] ?? 0;
     if (clearedAt <= lastHandled) {
       return;
@@ -1516,6 +1527,44 @@ class TransitProvider extends ChangeNotifier {
 
     try {
       _firestoreDataService.initialize();
+
+      // Primary source: deterministic per-student active request document.
+      final DocumentSnapshot<Map<String, dynamic>> activeRequestDoc =
+          await _firestoreDataService.getStudentActiveRequest(uid);
+      final Map<String, dynamic> activeRequestData =
+          activeRequestDoc.data() ?? <String, dynamic>{};
+
+      final bool hasDeterministicRequest =
+          _toBool(activeRequestData['hasActiveRequest']);
+      final String deterministicArea =
+          (activeRequestData['activeRequestArea'] as String? ?? '').trim();
+      final String deterministicZoneId =
+          (activeRequestData['zoneId'] as String? ?? '').trim();
+
+      if (hasDeterministicRequest) {
+        String resolvedArea = deterministicArea;
+        if (resolvedArea.isEmpty && deterministicZoneId.isNotEmpty) {
+          final Zone? byZoneId = _firstWhereOrNull(
+            (Zone zone) => _normalize(zone.id) == _normalize(deterministicZoneId),
+          );
+          if (byZoneId != null) {
+            resolvedArea = byZoneId.name;
+          }
+        }
+
+        if (resolvedArea.isNotEmpty) {
+          _hasActiveStudentRequest = true;
+          _activeRequestArea = resolvedArea;
+          _activeRequestConfirmedAtMillis = _timestampToMillis(activeRequestData['confirmedAt']) ?? 0;
+          final Zone? zone = _zoneByPickupArea(resolvedArea);
+          if (zone != null) {
+            _selectedPickupArea = zone.name;
+          }
+          return;
+        }
+      }
+
+      // Fallback for old records stored on user profile.
       final DocumentSnapshot profile = await _firestoreDataService.getUserProfile(uid);
       final Map<String, dynamic> data =
           profile.data() as Map<String, dynamic>? ?? <String, dynamic>{};
@@ -1525,6 +1574,7 @@ class TransitProvider extends ChangeNotifier {
       if (hasRemoteRequest && remoteArea.isNotEmpty) {
         _hasActiveStudentRequest = true;
         _activeRequestArea = remoteArea;
+        _activeRequestConfirmedAtMillis = _timestampToMillis(data['confirmedAt']) ?? 0;
         final Zone? zone = _zoneByPickupArea(remoteArea);
         if (zone != null) {
           _selectedPickupArea = zone.name;
@@ -1552,19 +1602,77 @@ class TransitProvider extends ChangeNotifier {
 
     try {
       _firestoreDataService.initialize();
+      final String normalizedArea = (_activeRequestArea ?? '').trim();
+      final Zone? activeZone = normalizedArea.isEmpty
+          ? null
+          : _zoneByPickupArea(normalizedArea);
+
       await _firestoreDataService.saveUserProfile(
         uid: uid,
         email: email,
         additionalData: <String, dynamic>{
           'hasActiveRequest': _hasActiveStudentRequest,
           'activeRequestArea': _hasActiveStudentRequest
-              ? (_activeRequestArea ?? '').trim()
+              ? normalizedArea
               : '',
+          'confirmedAt': _hasActiveStudentRequest
+              ? FieldValue.serverTimestamp()
+              : FieldValue.delete(),
         },
+      );
+
+      await _firestoreDataService.saveStudentActiveRequest(
+        uid: uid,
+        email: email,
+        hasActiveRequest: _hasActiveStudentRequest,
+        activeRequestArea: _hasActiveStudentRequest ? normalizedArea : null,
+        zoneId: _hasActiveStudentRequest ? activeZone?.id : null,
+        studentName: user?.displayName,
+        photoUrl: user?.photoURL,
       );
     } catch (e) {
       debugPrint('Active request remote sync failed: $e');
     }
+  }
+
+  void _clearPendingStudentRequestsForZone(String zoneId) {
+    unawaited(_clearPendingStudentRequestsForZoneNow(zoneId));
+  }
+
+  Future<void> _clearPendingStudentRequestsForZoneNow(String zoneId) async {
+    try {
+      _firestoreDataService.initialize();
+      await _firestoreDataService.clearPendingStudentRequestsByZone(zoneId);
+    } catch (e) {
+      debugPrint('Clearing pending student requests failed for $zoneId: $e');
+    }
+  }
+
+  void _clearAllPendingStudentRequests() {
+    unawaited(_clearAllPendingStudentRequestsNow());
+  }
+
+  Future<void> _clearAllPendingStudentRequestsNow() async {
+    try {
+      _firestoreDataService.initialize();
+      await _firestoreDataService.clearAllPendingStudentRequests();
+    } catch (e) {
+      debugPrint('Clearing all pending student requests failed: $e');
+    }
+  }
+
+  bool _toBool(dynamic raw) {
+    if (raw is bool) {
+      return raw;
+    }
+    if (raw is num) {
+      return raw != 0;
+    }
+    if (raw is String) {
+      final String value = raw.trim().toLowerCase();
+      return value == 'true' || value == '1';
+    }
+    return false;
   }
 
   Future<void> _ensureZonesSeeded() async {

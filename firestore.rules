@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Allow read/write for authenticated users
+    match /users/{uid} {
+      allow read: if request.auth.uid == uid;
+      allow write: if request.auth.uid == uid;
+      allow list: if request.auth != null;
+    }
+
+    // Student requests collection - الطلبات الطلابية
+    match /studentRequests/{uid} {
+      // الطالب يستطيع قراءة طلبه الخاص
+      allow read: if request.auth.uid == uid;
+      
+      // الطالب يستطيع كتابة طلبه الخاص (إنشاء وتحديث فقط)
+      allow create, update: if request.auth.uid == uid 
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.email == request.auth.token.email;
+      
+      // لا يسمح بالحذف من الطالب
+      allow delete: if false;
+      
+      // الليدر/الإداري يستطيع قراءة وتحديث الحالة
+      allow read, update: if request.auth != null 
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['leader', 'admin'];
+    }
+
+    // Zones collection
+    match /zones/{zoneId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null 
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['leader', 'admin'];
+    }
+
+    // Buses collection
+    match /buses/{busId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null 
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['leader', 'admin'];
+    }
+
+    // Default deny for other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

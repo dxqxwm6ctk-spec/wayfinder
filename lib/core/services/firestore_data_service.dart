@@ -201,61 +201,239 @@ class FirestoreDataService {
     });
   }
 
-  // ==================== RIDE REQUESTS ====================
+  // ==================== STUDENT REQUESTS ====================
 
-  /// Create ride request
-  Future<String> createRideRequest({
-    required String studentId,
-    required String zoneId,
-    required Map<String, dynamic> requestData,
+  /// Save the student's current active request in a deterministic document.
+  ///
+  /// Document path: studentRequests/{uid}
+  /// This keeps exactly one live request record per student.
+  Future<void> saveStudentActiveRequest({
+    required String uid,
+    required String email,
+    required bool hasActiveRequest,
+    String? activeRequestArea,
+    String? zoneId,
+    String? studentName,
+    String? photoUrl,
   }) async {
-    final docRef = await _firestore.collection('rideRequests').add({
-      'studentId': studentId,
-      'zoneId': zoneId,
-      ...requestData,
-      'createdAt': FieldValue.serverTimestamp(),
-      'status': 'pending',
-    });
-    return docRef.id;
+    _ensureInitialized();
+
+    final String normalizedArea = (activeRequestArea ?? '').trim();
+    final String normalizedZoneId = (zoneId ?? '').trim();
+    final String normalizedName = (studentName ?? '').trim();
+    final String normalizedPhotoUrl = (photoUrl ?? '').trim();
+
+    await _firestore.collection('studentRequests').doc(uid).set({
+      'uid': uid,
+      'userId': uid,
+      'studentId': uid,
+      'studentUid': uid,
+      'email': email,
+      'hasActiveRequest': hasActiveRequest,
+      'activeRequestArea': hasActiveRequest
+          ? normalizedArea
+          : FieldValue.delete(),
+      'pickupArea': hasActiveRequest
+          ? normalizedArea
+          : FieldValue.delete(),
+      'zoneId': hasActiveRequest
+          ? normalizedZoneId
+          : FieldValue.delete(),
+      'name': normalizedName.isEmpty ? FieldValue.delete() : normalizedName,
+      'photoUrl': normalizedPhotoUrl.isEmpty
+          ? FieldValue.delete()
+          : normalizedPhotoUrl,
+      'status': hasActiveRequest ? 'pending' : 'inactive',
+      'confirmedAt': hasActiveRequest
+          ? FieldValue.serverTimestamp()
+          : FieldValue.delete(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
-  /// Get active ride requests for zone
-  Stream<QuerySnapshot> getActiveRequestsByZone(String zoneId) {
+  /// Read the student's deterministic active request document.
+  Future<DocumentSnapshot<Map<String, dynamic>>> getStudentActiveRequest(
+    String uid,
+  ) {
+    _ensureInitialized();
+    return _firestore.collection('studentRequests').doc(uid).get();
+  }
+
+  /// Stream the student's deterministic active request document.
+  Stream<DocumentSnapshot<Map<String, dynamic>>> getStudentActiveRequestStream(
+    String uid,
+  ) {
+    _ensureInitialized();
+    return _firestore.collection('studentRequests').doc(uid).snapshots();
+  }
+
+  /// Stream pending requests by zone for student/leader views.
+  Stream<QuerySnapshot<Map<String, dynamic>>> getPendingStudentRequestsByZone(
+    String zoneId,
+  ) {
+    _ensureInitialized();
     return _firestore
-        .collection('rideRequests')
+        .collection('studentRequests')
         .where('zoneId', isEqualTo: zoneId)
         .where('status', isEqualTo: 'pending')
-        .orderBy('createdAt', descending: true)
         .snapshots();
   }
 
-  /// Get user's ride requests
-  Stream<QuerySnapshot> getUserRideRequests(String userId) {
-    return _firestore
-        .collection('rideRequests')
-        .where('studentId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
-        .snapshots();
+  /// Mark all pending requests in a zone as inactive.
+  Future<void> clearPendingStudentRequestsByZone(String zoneId) async {
+    _ensureInitialized();
+    final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
+        .collection('studentRequests')
+        .where('zoneId', isEqualTo: zoneId)
+        .where('status', isEqualTo: 'pending')
+        .get();
+
+    if (snapshot.docs.isEmpty) {
+      return;
+    }
+
+    final WriteBatch batch = _firestore.batch();
+    for (final QueryDocumentSnapshot<Map<String, dynamic>> doc in snapshot.docs) {
+      batch.set(doc.reference, <String, dynamic>{
+        'hasActiveRequest': false,
+        'status': 'inactive',
+        'activeRequestArea': FieldValue.delete(),
+        'pickupArea': FieldValue.delete(),
+        'zoneId': FieldValue.delete(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+    await batch.commit();
   }
 
-  /// Update ride request status
+  /// Mark all pending student requests as inactive.
+  Future<void> clearAllPendingStudentRequests() async {
+    _ensureInitialized();
+    final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
+        .collection('studentRequests')
+        .where('status', isEqualTo: 'pending')
+        .get();
+
+    if (snapshot.docs.isEmpty) {
+      return;
+    }
+
+    final WriteBatch batch = _firestore.batch();
+    for (final QueryDocumentSnapshot<Map<String, dynamic>> doc in snapshot.docs) {
+      batch.set(doc.reference, <String, dynamic>{
+        'hasActiveRequest': false,
+        'status': 'inactive',
+        'activeRequestArea': FieldValue.delete(),
+        'pickupArea': FieldValue.delete(),
+        'zoneId': FieldValue.delete(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+    await batch.commit();
+  }
+
+  /// Legacy API kept for backward compatibility.
   Future<void> updateRideRequestStatus(
     String requestId,
     String newStatus,
   ) async {
-    await _firestore.collection('rideRequests').doc(requestId).update({
+    await _firestore.collection('studentRequests').doc(requestId).update({
       'status': newStatus,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
-  /// Assign bus to ride request
+  /// Legacy API kept for backward compatibility.
   Future<void> assignBusToRequest(String requestId, String busId) async {
-    await _firestore.collection('rideRequests').doc(requestId).update({
+    await _firestore.collection('studentRequests').doc(requestId).update({
       'busId': busId,
       'status': 'assigned',
       'assignedAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  // ==================== REQUEST STATUS MANAGEMENT (LEADER/ADMIN) ====================
+
+  /// Update a student request status by the leader/admin.
+  /// 
+  /// Valid statuses: 'pending', 'accepted', 'rejected', 'cancelled'
+  /// This method is used by leaders to manage student ride requests.
+  Future<void> updateStudentRequestStatus({
+    required String studentUid,
+    required String newStatus,
+    String? rejectionReason,
+    String? assignedBusId,
+  }) async {
+    _ensureInitialized();
+
+    final Map<String, dynamic> updateData = {
+      'status': newStatus,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    // Add timestamp based on status
+    switch (newStatus) {
+      case 'accepted':
+        updateData['acceptedAt'] = FieldValue.serverTimestamp();
+        if (assignedBusId != null) {
+          updateData['assignedBusId'] = assignedBusId;
+        }
+        break;
+      case 'rejected':
+        updateData['rejectedAt'] = FieldValue.serverTimestamp();
+        if (rejectionReason != null && rejectionReason.isNotEmpty) {
+          updateData['rejectionReason'] = rejectionReason;
+        }
+        break;
+      case 'cancelled':
+        updateData['cancelledAt'] = FieldValue.serverTimestamp();
+        updateData['hasActiveRequest'] = false;
+        break;
+      default:
+        break;
+    }
+
+    await _firestore
+        .collection('studentRequests')
+        .doc(studentUid)
+        .update(updateData);
+  }
+
+  /// Get all active pending requests for a specific zone.
+  Future<List<Map<String, dynamic>>> getActivePendingRequestsByZone(
+    String zoneId,
+  ) async {
+    _ensureInitialized();
+
+    final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
+        .collection('studentRequests')
+        .where('zoneId', isEqualTo: zoneId)
+        .where('status', isEqualTo: 'pending')
+        .orderBy('confirmedAt', descending: false)
+        .get();
+
+    return snapshot.docs.map((doc) => doc.data()).toList();
+  }
+
+  /// Get request history for analytics and auditing.
+  Future<List<Map<String, dynamic>>> getRequestHistoryForZone(
+    String zoneId, {
+    int limitDays = 30,
+  }) async {
+    _ensureInitialized();
+
+    final DateTime cutoffDate =
+        DateTime.now().subtract(Duration(days: limitDays));
+
+    final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
+        .collection('studentRequests')
+        .where('zoneId', isEqualTo: zoneId)
+        .where('updatedAt',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(cutoffDate))
+        .orderBy('updatedAt', descending: true)
+        .get();
+
+    return snapshot.docs.map((doc) => doc.data()).toList();
   }
 
   // ==================== ANALYTICS & LOGS ====================
@@ -310,9 +488,9 @@ class FirestoreDataService {
     await batch.commit();
   }
 
-  /// Delete ride request
+  /// Legacy API kept for backward compatibility.
   Future<void> deleteRideRequest(String requestId) async {
-    await _firestore.collection('rideRequests').doc(requestId).delete();
+    await _firestore.collection('studentRequests').doc(requestId).delete();
   }
 
   /// Query helper - get document by custom field

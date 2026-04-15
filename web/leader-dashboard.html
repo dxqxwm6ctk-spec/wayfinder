@@ -4415,23 +4415,23 @@
         }
 
         function handleError(error) {
-          console.error("خطأ في الاستماع لطلبات الركوب:", error);
+          console.error("خطأ في الاستماع لطلبات الطلاب:", error);
           hasWaitingRideRequestsError = true;
           latestWaitingRideRequests = [];
           mergeWaitingStudentsSources();
           if (String(error && error.code || "") === "permission-denied") {
             if (hasWaitingUsersError) {
-              setStatus("لا توجد صلاحية لقراءة rideRequests أو users. حدّث Firestore Rules لحساب القائد.", "error");
+              setStatus("لا توجد صلاحية لقراءة studentRequests أو users. حدّث Firestore Rules لحساب القائد.", "error");
             }
             return;
           }
           if (String(error && error.code || "") === "failed-precondition" && !startedFallback) {
             startedFallback = true;
             unsubscribeWaitingStudents = db
-              .collection("rideRequests")
+              .collection("studentRequests")
               .limit(120)
               .onSnapshot(handleSnapshot, function (fallbackError) {
-                console.error("فشل الاستماع الاحتياطي لطلبات الركوب:", fallbackError);
+                console.error("فشل الاستماع الاحتياطي لطلبات الطلاب:", fallbackError);
                 hasWaitingRideRequestsError = true;
                 latestWaitingRideRequests = [];
                 mergeWaitingStudentsSources();
@@ -4458,7 +4458,7 @@
         }
 
         function handleAltError(error) {
-          console.error("خطأ في الاستماع لطلبات الركوب (ride_requests):", error);
+          console.error("خطأ في الاستماع لطلبات الطلاب (studentRequests):", error);
           hasWaitingRideRequestsAltError = true;
           latestWaitingRideRequestsAlt = [];
           mergeWaitingStudentsSources();
@@ -4528,12 +4528,12 @@
         }
 
         unsubscribeWaitingStudents = db
-          .collection("rideRequests")
+          .collection("studentRequests")
           .limit(120)
           .onSnapshot(handleSnapshot, handleError);
 
         unsubscribeWaitingStudentsAlt = db
-          .collection("ride_requests")
+          .collection("studentRequests")
           .limit(120)
           .onSnapshot(handleAltSnapshot, handleAltError);
 
