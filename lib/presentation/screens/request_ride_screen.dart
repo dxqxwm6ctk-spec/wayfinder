@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../localization/app_strings.dart';
 import '../providers/app_settings_provider.dart';
+import '../widgets/pre_booking_panel.dart';
 import '../providers/transit_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_shell_background.dart';
@@ -889,6 +890,110 @@ class _RequestRideScreenState extends State<RequestRideScreen> {
                                             : const Color(0xFF111827))
                                         .withValues(alpha: 0.72),
                               ),
+<<<<<<< HEAD
+=======
+                            )
+                            .toList(),
+                        onChanged: (String? value) {
+                          if (value != null) {
+                            transit.selectPickupArea(value);
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    const PreBookingPanel(),
+                    const SizedBox(height: 22),
+                    if (!hasValidActiveRequest)
+                      CustomButton(
+                        label: strings.confirmRequest,
+                        icon: Icons.arrow_forward,
+                        onPressed: () {
+                          if (!canConfirmRequest) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(strings.requestAreaRequired),
+                              ),
+                            );
+                            return;
+                          }
+
+                          final RequestExecutionSummary summary = transit
+                              .executeImmediateRequest();
+                          setState(() {
+                            _lastSummary = summary;
+                          });
+
+                          final List<String> buses = transit.busesForArea(
+                            summary.area,
+                          );
+                          final String busText =
+                              summary.busNumber == null ||
+                                  summary.busNumber!.trim().isEmpty
+                              ? strings.noBusAssigned
+                              : 'BUS #${summary.busNumber}';
+                          final String additionalBusesText = buses.length > 1
+                              ? ' | ${strings.additionalBusesAvailableCount(buses.length - 1)}'
+                              : '';
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                '${strings.selectedArea}: ${summary.area} | '
+                                '${strings.currentlyWaiting}: ${summary.studentsWaiting} ${strings.students} | '
+                                '${strings.assignedBus}: $busText$additionalBusesText',
+                              ),
+                            ),
+                          );
+                        },
+                      )
+                    else
+                      CustomButton(
+                        label: strings.cancelRequest,
+                        icon: Icons.cancel_outlined,
+                        onPressed: () {
+                          final RequestExecutionSummary? cancelled = transit
+                              .cancelRequestForArea(activeSummary.area);
+
+                          if (cancelled == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(strings.noActiveRequest)),
+                            );
+                            return;
+                          }
+
+                          setState(() {
+                            _lastSummary = null;
+                            _lastBusAssignmentNotificationKey = null;
+                            _lastDepartedPromptKey = null;
+                          });
+                        },
+                      ),
+                    if (summaryForView != null) ...<Widget>[
+                      const SizedBox(height: 20),
+                      InfoCard(
+                        title: strings.selectedArea,
+                        value: summaryForView.area,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildQueueSnapshotCard(
+                        context: context,
+                        strings: strings,
+                        transit: transit,
+                        summary: summaryForView,
+                        isDark: isDark,
+                      ),
+                      if (transit.busesForArea(summaryForView.area).length >
+                          1) ...<Widget>[
+                        const SizedBox(height: 12),
+                        InfoCard(
+                          title: strings.assignedBuses,
+                          value: transit
+                              .busesForArea(summaryForView.area)
+                              .map((String bus) => 'BUS #$bus')
+                              .join(' • '),
+                          indicatorColor: const Color(0xFF4B5B78),
+>>>>>>> b0f742e9c75f062b475a704e778e766672c798d1
                         ),
                         const SizedBox(height: 12),
                         Container(

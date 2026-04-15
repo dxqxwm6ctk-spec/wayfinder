@@ -674,6 +674,74 @@
       align-items: end;
     }
 
+    .trip-slot-card {
+      overflow: hidden;
+      border-color: #2f4e79;
+    }
+
+    .trip-slot-form {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 10px;
+      align-items: end;
+      margin-bottom: 10px;
+    }
+
+    .trip-slot-form .field {
+      min-width: 0;
+    }
+
+    .trip-slot-form .field.area-field { grid-column: span 3; }
+    .trip-slot-form .field.time-field { grid-column: span 4; }
+    .trip-slot-form .field.capacity-field { grid-column: span 2; }
+    .trip-slot-form .field.cutoff-field { grid-column: span 2; }
+    .trip-slot-form .field.action-field { grid-column: span 1; }
+
+    .trip-slot-form .time-field {
+      min-width: 0;
+    }
+
+    .trip-slot-form .action-field {
+      display: flex;
+      align-items: end;
+    }
+
+    .trip-slot-form .action-field .btn-main {
+      width: 100%;
+      min-width: 120px;
+    }
+
+    .trip-slot-form .input[type="datetime-local"] {
+      direction: ltr;
+      text-align: left;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .trip-slot-hint {
+      margin: 0 0 10px;
+      color: #9eb2d4;
+      font-size: 0.74rem;
+    }
+
+    .trip-slot-table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      border-radius: 12px;
+    }
+
+    .trip-slots-table {
+      min-width: 580px;
+    }
+
+    .trip-slots-table .time-cell,
+    .trip-slots-table .capacity-cell {
+      direction: ltr;
+      text-align: left;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.2px;
+      white-space: nowrap;
+    }
+
     .field {
       display: flex;
       flex-direction: column;
@@ -1262,6 +1330,26 @@
         grid-template-columns: 1fr;
       }
 
+      .trip-slot-card {
+        grid-column: auto;
+      }
+
+      .trip-slot-form {
+        grid-template-columns: 1fr;
+      }
+
+      .trip-slot-form .field.area-field,
+      .trip-slot-form .field.time-field,
+      .trip-slot-form .field.capacity-field,
+      .trip-slot-form .field.cutoff-field,
+      .trip-slot-form .field.action-field {
+        grid-column: span 1;
+      }
+
+      .trip-slot-hint {
+        font-size: 0.72rem;
+      }
+
       .fab {
         display: block;
       }
@@ -1273,7 +1361,7 @@
       }
 
       .live-grid {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(5, minmax(150px, 1fr));
       }
 
       .operations-shell {
@@ -1282,6 +1370,14 @@
 
       .ops-hero {
         grid-template-columns: 1.45fr 0.95fr;
+      }
+
+      .trip-slot-card {
+        grid-column: 1 / -1;
+      }
+
+      .trip-slot-form .field.action-field {
+        min-width: 132px;
       }
 
       .ops-grid {
@@ -1371,10 +1467,6 @@
 
             <div class="ops-grid" style="margin-top: 12px;">
               <section class="analytics-block">
-                <h3>المسارات الحية</h3>
-                <div id="routeVizContainer" class="route-viz"></div>
-              </section>
-              <section class="analytics-block">
                 <h3>إجراءات سريعة</h3>
                 <div class="qa-grid qa-grid-horizontal">
                   <button id="qaAddZoneBtn" class="qa-btn" type="button">
@@ -1395,6 +1487,50 @@
                 </div>
               </section>
             </div>
+          </div>
+
+          <div class="ops-card trip-slot-card">
+            <div class="eyebrow">Trip Slots</div>
+            <h3>مواعيد الترويحة المسبقة</h3>
+            <p class="trip-slot-hint">صيغة الوقت: English (MM/DD/YYYY, HH:MM AM/PM)</p>
+            <div class="trip-slot-form">
+              <div class="field area-field">
+                <label for="tripSlotAreaInput">المنطقة</label>
+                <select id="tripSlotAreaInput" class="input"></select>
+              </div>
+              <div class="field time-field">
+                <label for="tripSlotDatetimeInput">وقت الانطلاق</label>
+                <input id="tripSlotDatetimeInput" class="input" type="datetime-local" lang="en" step="60" />
+              </div>
+              <div class="field capacity-field">
+                <label for="tripSlotCapacityInput">السعة</label>
+                <input id="tripSlotCapacityInput" class="input" type="number" min="1" max="200" step="1" inputmode="numeric" value="20" />
+              </div>
+              <div class="field cutoff-field">
+                <label for="tripSlotCutoffInput">الإغلاق (دقيقة)</label>
+                <input id="tripSlotCutoffInput" class="input" type="number" min="1" max="180" step="1" inputmode="numeric" value="30" />
+              </div>
+              <div class="field action-field">
+                <label>&nbsp;</label>
+                <button id="createTripSlotBtn" class="btn-main" type="button">إضافة موعد</button>
+              </div>
+            </div>
+
+            <div class="trip-slot-table-wrap">
+              <table class="locations-table trip-slots-table">
+                <thead>
+                  <tr>
+                    <th>المنطقة</th>
+                    <th>الوقت</th>
+                    <th>الحجز</th>
+                    <th>الحالة</th>
+                    <th>إجراءات</th>
+                  </tr>
+                </thead>
+                <tbody id="tripSlotsTableBody"></tbody>
+              </table>
+            </div>
+            <p id="tripSlotsEmptyState" class="muted" style="display:none; margin-top:8px;">لا توجد مواعيد ترويحة مسبقة حتى الآن.</p>
           </div>
 
         </section>
@@ -1467,10 +1603,11 @@
               </table>
             </section>
           </div>
+
         </section>
       </details>
 
-      <section class="layout" style="margin-top: 14px;">
+      <section class="layout" style="margin-top: 14px; grid-template-columns: 1fr;">
         <section class="panel">
           <h2>الحالة المباشرة</h2>
           <div class="live-grid">
@@ -1605,6 +1742,13 @@
       var analyticsTopLocation = document.getElementById("analyticsTopLocation");
       var studentsLocationsTableBody = document.getElementById("studentsLocationsTableBody");
       var studentsLocationScheduleTableBody = document.getElementById("studentsLocationScheduleTableBody");
+      var tripSlotAreaInput = document.getElementById("tripSlotAreaInput");
+      var tripSlotDatetimeInput = document.getElementById("tripSlotDatetimeInput");
+      var tripSlotCapacityInput = document.getElementById("tripSlotCapacityInput");
+      var tripSlotCutoffInput = document.getElementById("tripSlotCutoffInput");
+      var createTripSlotBtn = document.getElementById("createTripSlotBtn");
+      var tripSlotsTableBody = document.getElementById("tripSlotsTableBody");
+      var tripSlotsEmptyState = document.getElementById("tripSlotsEmptyState");
       var exportStudentsCsvBtn = document.getElementById("exportStudentsCsvBtn");
       var exportStudentsXlsxBtn = document.getElementById("exportStudentsXlsxBtn");
       var operationsModeBtn = document.getElementById("operationsModeBtn");
@@ -1614,7 +1758,6 @@
       var forceRefreshBtn = document.getElementById("forceRefreshBtn");
       var toggleAdminAnalyticsBtn = document.getElementById("toggleAdminAnalyticsBtn");
       var adminImportBtn = document.getElementById("adminImportBtn");
-      var routeVizContainer = document.getElementById("routeVizContainer");
       var opsActiveBuses = document.getElementById("opsActiveBuses");
       var opsDelayedCount = document.getElementById("opsDelayedCount");
       var opsIssuesCount = document.getElementById("opsIssuesCount");
@@ -1650,6 +1793,7 @@
       var unsubscribeWaitingStudentsAlt = null;
       var unsubscribeWaitingUsers = null;
       var unsubscribeStudentsDirectory = null;
+      var unsubscribeTripSlots = null;
       var auth = null;
       var currentUser = null;
       var db = null;
@@ -1666,6 +1810,7 @@
       var latestWaitingRideRequestsAlt = [];
       var latestWaitingUsers = [];
       var latestStudentsDirectory = [];
+      var latestTripSlots = [];
       var latestLocationStats = [];
       var latestScheduleStats = [];
       var latestLocationScheduleStats = [];
@@ -2084,6 +2229,11 @@
           unsubscribeStudentsDirectory = null;
         }
 
+        if (typeof unsubscribeTripSlots === "function") {
+          unsubscribeTripSlots();
+          unsubscribeTripSlots = null;
+        }
+
         if (zonesPollingTimer) {
           window.clearInterval(zonesPollingTimer);
           zonesPollingTimer = null;
@@ -2093,12 +2243,343 @@
         latestWaitingRideRequestsAlt = [];
         latestWaitingUsers = [];
         latestStudentsDirectory = [];
+        latestTripSlots = [];
         hasWaitingUsersSnapshot = false;
         hasWaitingRideRequestsError = false;
         hasWaitingRideRequestsAltError = false;
         hasWaitingUsersError = false;
 
+        renderTripSlots();
+        renderTripSlotAreaOptions();
+
         clearAllDepartedAutoRemoveTimers();
+      }
+
+      function formatTripSlotTime(value) {
+        if (!value || typeof value.toDate !== "function") {
+          return "-";
+        }
+        var date = value.toDate();
+        if (!(date instanceof Date) || !Number.isFinite(date.getTime())) {
+          return "-";
+        }
+
+        var month = String(date.getMonth() + 1).padStart(2, "0");
+        var day = String(date.getDate()).padStart(2, "0");
+        var year = String(date.getFullYear());
+
+        var hour24 = date.getHours();
+        var minute = String(date.getMinutes()).padStart(2, "0");
+        var ampm = hour24 >= 12 ? "PM" : "AM";
+        var hour12 = hour24 % 12;
+        if (hour12 === 0) {
+          hour12 = 12;
+        }
+        var hour = String(hour12).padStart(2, "0");
+
+        return month + "/" + day + "/" + year + " " + hour + ":" + minute + " " + ampm;
+      }
+
+      function parseDateTimeLocal(value) {
+        var raw = String(value || "").trim();
+        if (!raw) {
+          return null;
+        }
+
+        if (raw.indexOf("T") !== -1) {
+          var isoLike = new Date(raw);
+          if (Number.isFinite(isoLike.getTime())) {
+            return isoLike;
+          }
+        }
+
+        // Fallback for browsers/locales that expose a human-readable datetime string.
+        var cleaned = raw.replace(/\u200e|\u200f/g, "").trim();
+        var normalized = cleaned
+          .replace(/\s+/g, " ")
+          .replace(/\//g, "-")
+          .replace(/\bAM\b/i, "")
+          .replace(/\bPM\b/i, "")
+          .trim();
+
+        var fallback = new Date(normalized);
+        if (Number.isFinite(fallback.getTime())) {
+          return fallback;
+        }
+
+        var parsed = new Date(raw);
+        if (!Number.isFinite(parsed.getTime())) {
+          return null;
+        }
+        return parsed;
+      }
+
+      function renderTripSlotAreaOptions() {
+        if (!tripSlotAreaInput) {
+          return;
+        }
+
+        var previousValue = String(tripSlotAreaInput.value || "").trim();
+        var optionsMap = {};
+        var options = [];
+
+        latestZoneDocs.forEach(function (doc) {
+          var data = doc && typeof doc.data === "function" ? (doc.data() || {}) : {};
+          if (isZoneDeleted(data.isDeleted)) {
+            return;
+          }
+          var name = String(data.name || doc.id || "").trim();
+          if (!name || optionsMap[name]) {
+            return;
+          }
+          optionsMap[name] = true;
+          options.push(name);
+        });
+
+        latestTripSlots.forEach(function (item) {
+          var areaId = String(item && item.areaId || "").trim();
+          if (!areaId || optionsMap[areaId]) {
+            return;
+          }
+          optionsMap[areaId] = true;
+          options.push(areaId);
+        });
+
+        options.sort(function (a, b) {
+          return String(a).localeCompare(String(b), "ar");
+        });
+
+        tripSlotAreaInput.innerHTML = "";
+        options.forEach(function (area) {
+          var option = document.createElement("option");
+          option.value = area;
+          option.textContent = area;
+          tripSlotAreaInput.appendChild(option);
+        });
+
+        if (!options.length) {
+          var fallback = document.createElement("option");
+          fallback.value = "";
+          fallback.textContent = "لا توجد مناطق";
+          tripSlotAreaInput.appendChild(fallback);
+          return;
+        }
+
+        var nextValue = previousValue && optionsMap[previousValue]
+          ? previousValue
+          : options[0];
+        tripSlotAreaInput.value = nextValue;
+      }
+
+      function renderTripSlots() {
+        if (!tripSlotsTableBody) {
+          return;
+        }
+
+        tripSlotsTableBody.innerHTML = "";
+        if (!latestTripSlots.length) {
+          if (tripSlotsEmptyState) {
+            tripSlotsEmptyState.style.display = "block";
+          }
+          return;
+        }
+
+        if (tripSlotsEmptyState) {
+          tripSlotsEmptyState.style.display = "none";
+        }
+
+        latestTripSlots.forEach(function (slot) {
+          var tr = document.createElement("tr");
+
+          var tdArea = document.createElement("td");
+          tdArea.textContent = String(slot.areaId || "-");
+
+          var tdTime = document.createElement("td");
+          tdTime.className = "time-cell";
+          tdTime.textContent = formatTripSlotTime(slot.departureAt);
+
+          var tdCapacity = document.createElement("td");
+          tdCapacity.className = "capacity-cell";
+          tdCapacity.textContent = String(slot.bookedCount || 0) + " / " + String(slot.maxCapacity || 0);
+
+          var tdStatus = document.createElement("td");
+          var statusText = slot.active ? "فعال" : "متوقف";
+          if (slot.activeTripId) {
+            statusText = "مفعل كرحلة";
+          }
+          tdStatus.textContent = statusText;
+
+          var tdActions = document.createElement("td");
+          var toggleBtn = document.createElement("button");
+          toggleBtn.type = "button";
+          toggleBtn.className = "tiny" + (slot.active ? " warn" : "");
+          toggleBtn.textContent = slot.active ? "إيقاف" : "تفعيل";
+          toggleBtn.addEventListener("click", function () {
+            toggleTripSlotActive(slot.id, !slot.active);
+          });
+          tdActions.appendChild(toggleBtn);
+
+          var deleteBtn = document.createElement("button");
+          deleteBtn.type = "button";
+          deleteBtn.className = "tiny danger";
+          deleteBtn.style.marginRight = "6px";
+          deleteBtn.textContent = "حذف";
+          deleteBtn.addEventListener("click", function () {
+            deleteTripSlot(slot.id);
+          });
+          tdActions.appendChild(deleteBtn);
+
+          tr.appendChild(tdArea);
+          tr.appendChild(tdTime);
+          tr.appendChild(tdCapacity);
+          tr.appendChild(tdStatus);
+          tr.appendChild(tdActions);
+          tripSlotsTableBody.appendChild(tr);
+        });
+      }
+
+      async function createTripSlot() {
+        if (!db) {
+          setStatus("فايربيس غير مهيأ.", "warn");
+          return;
+        }
+        if (!requireSignedIn("إضافة موعد ترويحة")) {
+          return;
+        }
+
+        var areaId = String(tripSlotAreaInput && tripSlotAreaInput.value || "").trim();
+        var areaKey = normalizeAreaKey(areaId);
+        var departureInput = String(tripSlotDatetimeInput && tripSlotDatetimeInput.value || "").trim();
+        var departureDate = parseDateTimeLocal(departureInput);
+        var maxCapacity = Number(tripSlotCapacityInput && tripSlotCapacityInput.value || 0);
+        var cutoffMinutes = Number(tripSlotCutoffInput && tripSlotCutoffInput.value || 30);
+
+        if (!areaId || !areaKey) {
+          setStatus("اختر المنطقة أولاً.", "warn");
+          return;
+        }
+        if (!departureDate) {
+          setStatus("اختر وقت انطلاق صحيح.", "warn");
+          return;
+        }
+        if (!Number.isFinite(maxCapacity) || maxCapacity <= 0) {
+          setStatus("السعة يجب أن تكون أكبر من صفر.", "warn");
+          return;
+        }
+        if (!Number.isFinite(cutoffMinutes) || cutoffMinutes <= 0) {
+          cutoffMinutes = 30;
+        }
+
+        try {
+          await db.collection("tripSlots").add({
+            areaId: areaId,
+            areaKey: areaKey,
+            active: true,
+            departureAt: firebase.firestore.Timestamp.fromDate(departureDate),
+            maxCapacity: Math.floor(maxCapacity),
+            bookedCount: 0,
+            cutoffMinutes: Math.floor(cutoffMinutes),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdBy: currentUser ? currentUser.uid : ""
+          });
+
+          if (tripSlotDatetimeInput) {
+            tripSlotDatetimeInput.value = "";
+          }
+          setStatus("تم إضافة موعد الترويحة.", "ok");
+          showToast("تمت إضافة موعد ترويحة مسبق", "ok");
+        } catch (error) {
+          console.error(error);
+          var message = error && error.message ? error.message : "خطأ غير معروف";
+          setStatus("فشل إضافة الموعد: " + message, "error");
+          showToast("تعذر حفظ الموعد في فايربيس: " + message, "error");
+        }
+      }
+
+      async function toggleTripSlotActive(slotId, nextActive) {
+        if (!db) {
+          return;
+        }
+        if (!requireSignedIn("تحديث حالة الموعد")) {
+          return;
+        }
+
+        try {
+          await db.collection("tripSlots").doc(slotId).set({
+            active: !!nextActive,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+          showToast(nextActive ? "تم تفعيل الموعد" : "تم إيقاف الموعد", "ok");
+        } catch (error) {
+          console.error(error);
+          setStatus("فشل تحديث حالة الموعد: " + (error.message || "خطأ غير معروف"), "error");
+        }
+      }
+
+      async function deleteTripSlot(slotId) {
+        if (!db) {
+          return;
+        }
+        if (!requireSignedIn("حذف موعد")) {
+          return;
+        }
+
+        var confirmed = window.confirm("هل تريد حذف هذا الموعد نهائيًا؟");
+        if (!confirmed) {
+          return;
+        }
+
+        try {
+          await db.collection("tripSlots").doc(slotId).delete();
+          showToast("تم حذف موعد الترويحة", "warn");
+        } catch (error) {
+          console.error(error);
+          setStatus("فشل حذف الموعد: " + (error.message || "خطأ غير معروف"), "error");
+        }
+      }
+
+      function startTripSlotsListening() {
+        if (!db) {
+          return;
+        }
+
+        if (typeof unsubscribeTripSlots === "function") {
+          unsubscribeTripSlots();
+          unsubscribeTripSlots = null;
+        }
+
+        unsubscribeTripSlots = db
+          .collection("tripSlots")
+          .limit(500)
+          .onSnapshot(
+            function (snapshot) {
+              latestTripSlots = (snapshot && snapshot.docs ? snapshot.docs : []).map(function (doc) {
+                var data = doc.data() || {};
+                return {
+                  id: doc.id,
+                  areaId: String(data.areaId || "").trim(),
+                  active: data.active === true,
+                  departureAt: data.departureAt || null,
+                  maxCapacity: Number(data.maxCapacity || 0),
+                  bookedCount: Number(data.bookedCount || 0),
+                  cutoffMinutes: Number(data.cutoffMinutes || 30),
+                  activeTripId: String(data.activeTripId || "").trim()
+                };
+              }).sort(function (a, b) {
+                var aTime = a.departureAt && typeof a.departureAt.toMillis === "function" ? a.departureAt.toMillis() : 0;
+                var bTime = b.departureAt && typeof b.departureAt.toMillis === "function" ? b.departureAt.toMillis() : 0;
+                return aTime - bTime;
+              });
+
+              renderTripSlotAreaOptions();
+              renderTripSlots();
+            },
+            function (error) {
+              console.error("Trip slots listener error:", error);
+              showToast("تعذر مزامنة مواعيد الترويحة", "error");
+            }
+          );
       }
 
       function setZoneViewFilter(next) {
@@ -2416,6 +2897,8 @@
         renderZoneNames(allZoneNames.sort(function (a, b) {
           return String(a).localeCompare(String(b), "ar");
         }));
+
+        renderTripSlotAreaOptions();
 
         applyZoneCardFilter();
 
@@ -3762,27 +4245,6 @@
           opsTripsToday.textContent = String(snapshot.tripsToday);
         }
 
-        if (routeVizContainer) {
-          if (!snapshot.routes.length) {
-            routeVizContainer.innerHTML = '<div class="route-step"><strong>لا توجد مناطق نشطة</strong><span class="meta">سيظهر العرض التشغيلي هنا بعد المزامنة.</span></div>';
-          } else {
-            routeVizContainer.innerHTML = snapshot.routes.slice(0, 6).map(function (row) {
-              var busLabel = row.primaryBus ? ("باص #" + escapeHtml(row.primaryBus)) : "بدون باص";
-              var severityLabel = zoneStateBadgeLabel(row.zoneState);
-              var statusClass = row.severity === "critical" ? "critical" : (row.severity === "moderate" ? "warn" : "ok");
-              return (
-                '<div class="route-step ' + statusClass + '">' +
-                  '<div>' +
-                    '<strong>' + escapeHtml(row.name) + '</strong>' +
-                    '<div class="meta">' + escapeHtml(busLabel) + ' · ' + escapeHtml(severityLabel) + '</div>' +
-                  '</div>' +
-                  '<div class="tiny ' + statusClass + '">' + String(row.waiting) + ' منتظر</div>' +
-                '</div>'
-              );
-            }).join("");
-          }
-        }
-
       }
 
       function setDashboardMode(mode) {
@@ -4093,7 +4555,10 @@
         // Match app behavior: source of truth is users.hasActiveRequest + activeRequestArea.
         if (Array.isArray(latestWaitingUsers) && latestWaitingUsers.length) {
           merged = latestWaitingUsers.slice();
-        } else if (hasWaitingUsersError || !hasWaitingUsersSnapshot) {
+        }
+
+        // If users source is unavailable OR returns empty, fall back to rideRequests collections.
+        if (!merged.length || hasWaitingUsersError || !hasWaitingUsersSnapshot) {
           if (Array.isArray(latestWaitingRideRequests) && latestWaitingRideRequests.length) {
             merged = merged.concat(latestWaitingRideRequests);
           }
@@ -4587,6 +5052,7 @@
 
         startWaitingStudentsListening();
         startStudentsDirectoryListening();
+        startTripSlotsListening();
       }
 
       function initFirebaseAndLoad() {
@@ -4818,6 +5284,12 @@
         exportLocationStatsXlsx(latestLocationStats, latestScheduleStats, latestLocationScheduleStats);
           showToast("تم تصدير إحصائيات المواقع والدوام إكسل", "ok");
       });
+
+      if (createTripSlotBtn) {
+        createTripSlotBtn.addEventListener("click", function () {
+          createTripSlot();
+        });
+      }
 
       qaAddZoneBtn.addEventListener("click", function () {
         zoneNameInput.focus();

@@ -2,6 +2,7 @@
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
+<<<<<<< HEAD
   },
   "functions": {
     "source": "functions"
@@ -15,5 +16,7 @@
         "destination": "/index.html"
       }
     ]
+=======
+>>>>>>> b0f742e9c75f062b475a704e778e766672c798d1
   }
 }
